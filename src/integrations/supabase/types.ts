@@ -14,7 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      dataset_summaries: {
+        Row: {
+          avg_price: number | null
+          close: number | null
+          created_at: string
+          data_points: number
+          dataset_id: string
+          date: string
+          high: number | null
+          id: string
+          low: number | null
+          metadata: Json | null
+          open: number | null
+          price_change: number | null
+          price_change_percent: number | null
+          symbol: string | null
+          volume: number | null
+        }
+        Insert: {
+          avg_price?: number | null
+          close?: number | null
+          created_at?: string
+          data_points?: number
+          dataset_id: string
+          date: string
+          high?: number | null
+          id?: string
+          low?: number | null
+          metadata?: Json | null
+          open?: number | null
+          price_change?: number | null
+          price_change_percent?: number | null
+          symbol?: string | null
+          volume?: number | null
+        }
+        Update: {
+          avg_price?: number | null
+          close?: number | null
+          created_at?: string
+          data_points?: number
+          dataset_id?: string
+          date?: string
+          high?: number | null
+          id?: string
+          low?: number | null
+          metadata?: Json | null
+          open?: number | null
+          price_change?: number | null
+          price_change_percent?: number | null
+          symbol?: string | null
+          volume?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dataset_summaries_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      datasets: {
+        Row: {
+          created_at: string
+          date_column: string | null
+          description: string | null
+          error_message: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          id: string
+          name: string
+          row_count: number | null
+          status: string
+          updated_at: string
+          value_columns: string[] | null
+        }
+        Insert: {
+          created_at?: string
+          date_column?: string | null
+          description?: string | null
+          error_message?: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          id?: string
+          name: string
+          row_count?: number | null
+          status?: string
+          updated_at?: string
+          value_columns?: string[] | null
+        }
+        Update: {
+          created_at?: string
+          date_column?: string | null
+          description?: string | null
+          error_message?: string | null
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          name?: string
+          row_count?: number | null
+          status?: string
+          updated_at?: string
+          value_columns?: string[] | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

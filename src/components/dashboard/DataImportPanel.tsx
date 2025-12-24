@@ -1,0 +1,366 @@
+import { useState, useCallback } from 'react';
+import { Upload, FileText, Loader2, CheckCircle, XCircle, Trash2, Database, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Progress } from '@/components/ui/progress';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+interface Dataset {
+  id: string;
+  name: string;
+  description: string | null;
+  file_name: string;
+  file_size: number;
+  file_type: string;
+  status: string;
+  row_count: number | null;
+  date_column: string | null;
+  value_columns: string[] | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+interface DataImportPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onDatasetProcessed?: (datasetId: string) => void;
+}
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(2)} GB`;
+  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(2)} MB`;
+  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(2)} KB`;
+  return `${bytes} B`;
+};
+
+export const DataImportPanel = ({ isOpen, onClose, onDatasetProcessed }: DataImportPanelProps) => {
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [datasetName, setDatasetName] = useState('');
+
+  // Fetch datasets
+  const fetchDatasets = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('datasets')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setDatasets(data || []);
+    } catch (error) {
+      console.error('Error fetching datasets:', error);
+      toast.error('Failed to load datasets');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Load datasets when panel opens
+  useState(() => {
+    if (isOpen) {
+      fetchDatasets();
+    }
+  });
+
+  // Handle file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const fileType = file.name.endsWith('.csv') ? 'csv' : 
+                     file.name.endsWith('.json') ? 'json' : null;
+
+    if (!fileType) {
+      toast.error('Please upload a CSV or JSON file');
+      return;
+    }
+
+    if (file.size > 100 * 1024 * 1024) { // 100MB limit for direct upload
+      toast.error('File too large. Maximum size is 100MB for direct upload.');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(10);
+
+    try {
+      const fileName = `${Date.now()}_${file.name}`;
+      
+      // Upload to storage
+      setUploadProgress(30);
+      const { error: uploadError } = await supabase.storage
+        .from('datasets')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+      setUploadProgress(60);
+
+      // Create dataset record
+      const { data: dataset, error: insertError } = await supabase
+        .from('datasets')
+        .insert({
+          name: datasetName || file.name.replace(/\.(csv|json)$/i, ''),
+          file_name: fileName,
+          file_size: file.size,
+          file_type: fileType,
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+      setUploadProgress(80);
+
+      // Trigger processing
+      const { error: processError } = await supabase.functions.invoke('process-dataset', {
+        body: { datasetId: dataset.id },
+      });
+
+      if (processError) {
+        console.error('Process error:', processError);
+        // Don't throw - the dataset was created, just failed to process
+        toast.warning('Dataset uploaded but processing failed. You can retry later.');
+      } else {
+        toast.success('Dataset uploaded and processing started!');
+        onDatasetProcessed?.(dataset.id);
+      }
+
+      setUploadProgress(100);
+      setDatasetName('');
+      fetchDatasets();
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload dataset');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
+  // Retry processing
+  const handleRetryProcessing = async (datasetId: string) => {
+    try {
+      await supabase
+        .from('datasets')
+        .update({ status: 'pending', error_message: null })
+        .eq('id', datasetId);
+
+      const { error } = await supabase.functions.invoke('process-dataset', {
+        body: { datasetId },
+      });
+
+      if (error) throw error;
+      toast.success('Processing restarted');
+      fetchDatasets();
+    } catch (error) {
+      console.error('Retry error:', error);
+      toast.error('Failed to restart processing');
+    }
+  };
+
+  // Delete dataset
+  const handleDelete = async (dataset: Dataset) => {
+    try {
+      // Delete from storage
+      await supabase.storage.from('datasets').remove([dataset.file_name]);
+      
+      // Delete record (summaries cascade delete)
+      const { error } = await supabase
+        .from('datasets')
+        .delete()
+        .eq('id', dataset.id);
+
+      if (error) throw error;
+      toast.success('Dataset deleted');
+      fetchDatasets();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error('Failed to delete dataset');
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge className="bg-chart-up/20 text-chart-up border-chart-up/30"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
+      case 'processing':
+        return <Badge className="bg-primary/20 text-primary border-primary/30"><Loader2 className="h-3 w-3 mr-1 animate-spin" />Processing</Badge>;
+      case 'failed':
+        return <Badge className="bg-destructive/20 text-destructive border-destructive/30"><XCircle className="h-3 w-3 mr-1" />Failed</Badge>;
+      default:
+        return <Badge variant="outline">Pending</Badge>;
+    }
+  };
+
+  return (
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="right" className="w-full sm:w-[500px] sm:max-w-[500px] p-0">
+        <SheetHeader className="px-4 py-3 border-b">
+          <SheetTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-primary" />
+            Data Import Pipeline
+          </SheetTitle>
+        </SheetHeader>
+
+        <ScrollArea className="h-[calc(100vh-60px)]">
+          <div className="p-4 space-y-4">
+            {/* Upload Section */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Upload Dataset
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label htmlFor="dataset-name" className="text-xs">Dataset Name (optional)</Label>
+                  <Input
+                    id="dataset-name"
+                    placeholder="My Financial Data"
+                    value={datasetName}
+                    onChange={(e) => setDatasetName(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div>
+                  <Label className="text-xs">File (CSV or JSON)</Label>
+                  <div className="mt-1 border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-colors">
+                    <input
+                      type="file"
+                      accept=".csv,.json"
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                      className="hidden"
+                      id="file-upload"
+                    />
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      {isUploading ? (
+                        <div className="space-y-2">
+                          <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
+                          <p className="text-sm text-muted-foreground">Uploading...</p>
+                          <Progress value={uploadProgress} className="h-2" />
+                        </div>
+                      ) : (
+                        <>
+                          <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground">
+                            Click to upload CSV or JSON
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Max 100MB • Auto-detects date & price columns
+                          </p>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Datasets List */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">Your Datasets</CardTitle>
+                  <Button variant="ghost" size="sm" onClick={fetchDatasets} disabled={isLoading}>
+                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {datasets.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No datasets yet. Upload your first file above.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {datasets.map((dataset) => (
+                      <div
+                        key={dataset.id}
+                        className="p-3 rounded-lg border bg-muted/30 space-y-2"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-medium text-sm">{dataset.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(dataset.file_size)} • {dataset.file_type.toUpperCase()}
+                            </p>
+                          </div>
+                          {getStatusBadge(dataset.status)}
+                        </div>
+
+                        {dataset.status === 'completed' && (
+                          <div className="text-xs text-muted-foreground">
+                            <p>{dataset.row_count?.toLocaleString()} rows → aggregated summaries</p>
+                            {dataset.date_column && (
+                              <p>Date: {dataset.date_column}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {dataset.status === 'failed' && dataset.error_message && (
+                          <p className="text-xs text-destructive">{dataset.error_message}</p>
+                        )}
+
+                        <div className="flex items-center gap-2 pt-1">
+                          {dataset.status === 'failed' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRetryProcessing(dataset.id)}
+                              className="text-xs h-7"
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Retry
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(dataset)}
+                            className="text-xs h-7 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Instructions */}
+            <Card>
+              <CardContent className="pt-4">
+                <h4 className="font-medium text-sm mb-2">Supported Data Formats</h4>
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  <li>• CSV with headers (date, price, volume columns)</li>
+                  <li>• JSON array of objects with date/price fields</li>
+                  <li>• Auto-detects: date, open, high, low, close, volume</li>
+                  <li>• Aggregates data by day for efficient charting</li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+};

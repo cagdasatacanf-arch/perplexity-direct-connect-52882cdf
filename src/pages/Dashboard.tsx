@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { SymbolSidebar } from '@/components/dashboard/SymbolSidebar';
@@ -6,9 +6,12 @@ import { ChartToolbar } from '@/components/dashboard/ChartToolbar';
 import { PriceChart } from '@/components/dashboard/PriceChart';
 import { StatsPanel } from '@/components/dashboard/StatsPanel';
 import { AIResultsPanel } from '@/components/dashboard/AIResultsPanel';
+import { PriceAlertDialog } from '@/components/dashboard/PriceAlertDialog';
+import { AlertsPanel } from '@/components/dashboard/AlertsPanel';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { perplexityApi, type PerplexityResponse } from '@/lib/api/perplexity';
+import { useAlerts } from '@/hooks/useAlerts';
 import {
   sampleSymbols,
   generateOHLCData,
@@ -29,6 +32,18 @@ const Dashboard = () => {
   const [aiLoading, setAILoading] = useState(false);
   const [aiQuery, setAIQuery] = useState<string>();
   const [aiResult, setAIResult] = useState<PerplexityResponse>();
+
+  // Alerts
+  const [alertsPanelOpen, setAlertsPanelOpen] = useState(false);
+  const {
+    alerts,
+    triggeredAlerts,
+    addAlert,
+    removeAlert,
+    triggerAlert,
+    clearTriggered,
+    checkAlerts,
+  } = useAlerts();
 
   // Get current symbol data
   const currentSymbol = useMemo(() => 
@@ -51,6 +66,21 @@ const Dashboard = () => {
     calculateStats(chartData),
     [chartData]
   );
+
+  // Check for triggered alerts when symbol changes
+  useEffect(() => {
+    const triggered = checkAlerts(selectedSymbol, currentSymbol.price);
+    triggered.forEach((alert) => {
+      triggerAlert(alert.id);
+      toast.success(
+        `Alert triggered: ${alert.symbolId} is now ${alert.condition === 'above' ? 'above' : 'below'} $${alert.targetPrice.toFixed(2)}`,
+        {
+          description: `Current price: $${currentSymbol.price.toFixed(2)}`,
+          duration: 5000,
+        }
+      );
+    });
+  }, [selectedSymbol, currentSymbol.price, checkAlerts, triggerAlert]);
 
   // Handlers
   const handleSymbolSelect = useCallback((id: string) => {
@@ -85,6 +115,16 @@ const Dashboard = () => {
       setAILoading(false);
     }
   }, []);
+
+  const handleAddAlert = useCallback((alert: {
+    symbolId: string;
+    symbolName: string;
+    targetPrice: number;
+    condition: 'above' | 'below';
+  }) => {
+    addAlert(alert);
+    toast.success(`Alert created for ${alert.symbolId} ${alert.condition === 'above' ? '≥' : '≤'} $${alert.targetPrice.toFixed(2)}`);
+  }, [addAlert]);
 
   const handleExportPNG = useCallback(() => {
     toast.success('Chart exported as PNG');
@@ -135,6 +175,16 @@ const Dashboard = () => {
               onIndicatorToggle={handleIndicatorToggle}
               onExportPNG={handleExportPNG}
               onExportCSV={handleExportCSV}
+              alertsCount={alerts.length}
+              onOpenAlerts={() => setAlertsPanelOpen(true)}
+              alertButton={
+                <PriceAlertDialog
+                  symbolId={currentSymbol.id}
+                  symbolName={currentSymbol.name}
+                  currentPrice={currentSymbol.price}
+                  onAddAlert={handleAddAlert}
+                />
+              }
             />
             
             <div className="flex-1 overflow-auto p-4">
@@ -156,6 +206,16 @@ const Dashboard = () => {
             answer={aiResult?.answer}
             citations={aiResult?.citations}
             isLoading={aiLoading}
+          />
+
+          {/* Alerts Panel */}
+          <AlertsPanel
+            isOpen={alertsPanelOpen}
+            onClose={() => setAlertsPanelOpen(false)}
+            alerts={alerts}
+            triggeredAlerts={triggeredAlerts}
+            onRemoveAlert={removeAlert}
+            onClearTriggered={clearTriggered}
           />
         </div>
       </div>

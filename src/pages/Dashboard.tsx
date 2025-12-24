@@ -15,6 +15,7 @@ import { CorrelationMatrix } from '@/components/dashboard/CorrelationMatrix';
 import { EconomicCalendar } from '@/components/dashboard/EconomicCalendar';
 import { SectorRotation } from '@/components/dashboard/SectorRotation';
 import { HistoricalSidebar } from '@/components/dashboard/HistoricalSidebar';
+import { FullscreenChart } from '@/components/dashboard/FullscreenChart';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { perplexityApi, type PerplexityResponse } from '@/lib/api/perplexity';
@@ -233,13 +234,15 @@ const Dashboard = () => {
                 />
               )}
               
-              <div id="price-chart-container">
-                <PriceChart
-                  data={chartData}
-                  chartType={chartType}
-                  indicators={indicators}
-                />
-              </div>
+              <FullscreenChart title={`${currentSymbol.id} - ${currentSymbol.name}`}>
+                <div id="price-chart-container">
+                  <PriceChart
+                    data={chartData}
+                    chartType={chartType}
+                    indicators={indicators}
+                  />
+                </div>
+              </FullscreenChart>
               
               {/* Stats and AI Analysis side by side */}
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">

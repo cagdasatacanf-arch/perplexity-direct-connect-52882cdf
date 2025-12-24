@@ -14,6 +14,7 @@ import { PortfolioPanel } from '@/components/dashboard/PortfolioPanel';
 import { CorrelationMatrix } from '@/components/dashboard/CorrelationMatrix';
 import { EconomicCalendar } from '@/components/dashboard/EconomicCalendar';
 import { SectorRotation } from '@/components/dashboard/SectorRotation';
+import { HistoricalDataVisualization } from '@/components/dashboard/HistoricalDataVisualization';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { perplexityApi, type PerplexityResponse } from '@/lib/api/perplexity';
@@ -248,6 +249,14 @@ const Dashboard = () => {
                   currentPrice={currentSymbol.price}
                 />
               </div>
+
+              {/* Historical Data Visualization */}
+              <HistoricalDataVisualization
+                data={chartData}
+                symbolId={currentSymbol.id}
+                symbolName={currentSymbol.name}
+                className="mt-4"
+              />
 
               {/* Sector Rotation & Economic Calendar */}
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">

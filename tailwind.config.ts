@@ -51,6 +51,14 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -61,13 +69,20 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        search: {
-          bg: "hsl(var(--search-bg))",
-          border: "hsl(var(--search-border))",
+        chart: {
+          up: "hsl(var(--chart-up))",
+          down: "hsl(var(--chart-down))",
+          line: "hsl(var(--chart-line))",
+          volume: "hsl(var(--chart-volume))",
+          ma20: "hsl(var(--chart-ma20))",
+          ma50: "hsl(var(--chart-ma50))",
+          ma200: "hsl(var(--chart-ma200))",
+          rsi: "hsl(var(--chart-rsi))",
+          bb: "hsl(var(--chart-bb))",
         },
-        citation: {
-          bg: "hsl(var(--citation-bg))",
-          border: "hsl(var(--citation-border))",
+        ai: {
+          bg: "hsl(var(--ai-bg))",
+          border: "hsl(var(--ai-border))",
         },
       },
       borderRadius: {

@@ -4,104 +4,131 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design System - Perplexity-inspired minimal aesthetic */
+/* DEPO Financial Dashboard Design System */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 220 13% 13%;
+    --background: 40 20% 99%;
+    --foreground: 192 56% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 13% 13%;
+    --card-foreground: 192 56% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 13% 13%;
+    --popover-foreground: 192 56% 14%;
 
-    --primary: 217 91% 60%;
+    --primary: 180 60% 31%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 13% 13%;
+    --secondary: 40 20% 96%;
+    --secondary-foreground: 192 56% 14%;
 
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 40 15% 94%;
+    --muted-foreground: 180 8% 45%;
 
-    --accent: 217 91% 60%;
+    --accent: 180 60% 31%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 350 75% 42%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217 91% 60%;
+    --success: 180 60% 31%;
+    --success-foreground: 0 0% 100%;
 
-    --radius: 0.75rem;
+    --warning: 18 55% 42%;
+    --warning-foreground: 0 0% 100%;
 
-    /* Custom colors */
-    --gradient-start: 217 91% 60%;
-    --gradient-end: 271 81% 56%;
-    --glow: 217 91% 60%;
+    --border: 35 15% 85%;
+    --input: 35 15% 85%;
+    --ring: 180 60% 31%;
+
+    --radius: 0.5rem;
+
+    /* Chart colors */
+    --chart-up: 152 56% 42%;
+    --chart-down: 350 75% 50%;
+    --chart-line: 180 60% 31%;
+    --chart-volume: 180 60% 75%;
+    --chart-ma20: 217 91% 60%;
+    --chart-ma50: 280 70% 60%;
+    --chart-ma200: 45 90% 55%;
+    --chart-rsi: 271 81% 56%;
+    --chart-bb: 180 60% 50%;
     
-    /* Search specific */
-    --search-bg: 220 14% 98%;
-    --search-border: 220 13% 90%;
-    --citation-bg: 217 91% 97%;
-    --citation-border: 217 91% 85%;
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 192 56% 14%;
+    --sidebar-primary: 180 60% 31%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 40 20% 96%;
+    --sidebar-accent-foreground: 192 56% 14%;
+    --sidebar-border: 35 15% 90%;
+    --sidebar-ring: 180 60% 31%;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* AI Panel */
+    --ai-bg: 180 40% 97%;
+    --ai-border: 180 30% 85%;
   }
 
   .dark {
-    --background: 220 13% 8%;
-    --foreground: 220 14% 96%;
+    --background: 180 12% 8%;
+    --foreground: 40 20% 96%;
 
-    --card: 220 13% 10%;
-    --card-foreground: 220 14% 96%;
+    --card: 180 12% 11%;
+    --card-foreground: 40 20% 96%;
 
-    --popover: 220 13% 10%;
-    --popover-foreground: 220 14% 96%;
+    --popover: 180 12% 11%;
+    --popover-foreground: 40 20% 96%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 180 60% 45%;
+    --primary-foreground: 180 12% 8%;
 
-    --secondary: 220 13% 15%;
-    --secondary-foreground: 220 14% 96%;
+    --secondary: 180 12% 15%;
+    --secondary-foreground: 40 20% 96%;
 
-    --muted: 220 13% 15%;
-    --muted-foreground: 220 9% 60%;
+    --muted: 180 12% 18%;
+    --muted-foreground: 180 8% 60%;
 
-    --accent: 217 91% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 180 60% 45%;
+    --accent-foreground: 180 12% 8%;
 
-    --destructive: 0 62% 45%;
+    --destructive: 350 65% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 18%;
-    --input: 220 13% 18%;
-    --ring: 217 91% 60%;
-    
-    /* Custom colors - dark mode */
-    --search-bg: 220 13% 12%;
-    --search-border: 220 13% 20%;
-    --citation-bg: 217 91% 15%;
-    --citation-border: 217 91% 25%;
+    --success: 152 56% 50%;
+    --success-foreground: 0 0% 100%;
 
-    --sidebar-background: 220 13% 8%;
-    --sidebar-foreground: 220 14% 96%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 13% 15%;
-    --sidebar-accent-foreground: 220 14% 96%;
-    --sidebar-border: 220 13% 18%;
-    --sidebar-ring: 217 91% 60%;
+    --warning: 18 65% 55%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 180 12% 20%;
+    --input: 180 12% 20%;
+    --ring: 180 60% 45%;
+
+    /* Chart colors - dark mode */
+    --chart-up: 152 56% 50%;
+    --chart-down: 350 65% 55%;
+    --chart-line: 180 60% 50%;
+    --chart-volume: 180 40% 35%;
+    --chart-ma20: 217 91% 65%;
+    --chart-ma50: 280 70% 65%;
+    --chart-ma200: 45 90% 60%;
+    --chart-rsi: 271 81% 60%;
+    --chart-bb: 180 60% 55%;
+    
+    /* Sidebar - dark mode */
+    --sidebar-background: 180 12% 6%;
+    --sidebar-foreground: 40 20% 96%;
+    --sidebar-primary: 180 60% 45%;
+    --sidebar-primary-foreground: 180 12% 8%;
+    --sidebar-accent: 180 12% 15%;
+    --sidebar-accent-foreground: 40 20% 96%;
+    --sidebar-border: 180 12% 18%;
+    --sidebar-ring: 180 60% 45%;
+
+    /* AI Panel - dark mode */
+    --ai-bg: 180 20% 12%;
+    --ai-border: 180 20% 22%;
   }
 }
 
@@ -121,21 +148,67 @@
 }
 
 @layer utilities {
-  .search-glow {
-    box-shadow: 0 0 0 1px hsl(var(--search-border)),
-                0 4px 6px -1px hsl(var(--foreground) / 0.05),
-                0 2px 4px -2px hsl(var(--foreground) / 0.05);
-    transition: box-shadow 0.2s ease;
+  .chart-container {
+    @apply relative rounded-lg bg-card border border-border;
   }
-  
-  .search-glow:focus-within {
-    box-shadow: 0 0 0 2px hsl(var(--primary)),
-                0 10px 15px -3px hsl(var(--primary) / 0.1),
-                0 4px 6px -4px hsl(var(--primary) / 0.1);
+
+  .stat-card {
+    @apply bg-card border border-border rounded-lg p-4 transition-all duration-200;
+  }
+
+  .stat-card:hover {
+    @apply border-primary/30 shadow-sm;
+  }
+
+  .symbol-chip {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium 
+           bg-secondary text-secondary-foreground cursor-pointer transition-all duration-200;
+  }
+
+  .symbol-chip:hover {
+    @apply bg-primary/10 text-primary;
+  }
+
+  .symbol-chip.active {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .time-btn {
+    @apply px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-150
+           text-muted-foreground hover:text-foreground hover:bg-muted;
+  }
+
+  .time-btn.active {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+
+  .indicator-toggle {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm
+           border border-border bg-background cursor-pointer transition-all duration-150;
+  }
+
+  .indicator-toggle:hover {
+    @apply border-primary/50;
+  }
+
+  .indicator-toggle.active {
+    @apply bg-primary/10 border-primary text-primary;
+  }
+
+  .ai-result-card {
+    @apply bg-card border border-border rounded-lg p-4 animate-fade-in;
+  }
+
+  .price-up {
+    @apply text-[hsl(var(--chart-up))];
+  }
+
+  .price-down {
+    @apply text-[hsl(var(--chart-down))];
   }
 
   .gradient-text {
-    background: linear-gradient(135deg, hsl(var(--gradient-start)), hsl(var(--gradient-end)));
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(180 80% 50%));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -169,6 +242,21 @@
     }
   }
 
+  .animate-slide-in-right {
+    animation: slide-in-right 0.3s ease-out forwards;
+  }
+
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
   .prose-answer {
     @apply leading-relaxed;
   }
@@ -187,5 +275,22 @@
 
   .prose-answer strong {
     @apply font-semibold;
+  }
+
+  /* Scrollbar styling */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
   }
 }

@@ -12,8 +12,7 @@ import { CommodityCards } from '@/components/dashboard/CommodityCards';
 import { AIMarketAnalysis } from '@/components/dashboard/AIMarketAnalysis';
 import { PortfolioPanel } from '@/components/dashboard/PortfolioPanel';
 import { CorrelationMatrix } from '@/components/dashboard/CorrelationMatrix';
-import { EconomicCalendar } from '@/components/dashboard/EconomicCalendar';
-import { SectorRotation } from '@/components/dashboard/SectorRotation';
+import { MarketInsightsPanel } from '@/components/dashboard/MarketInsightsPanel';
 import { HistoricalSidebar } from '@/components/dashboard/HistoricalSidebar';
 import { FullscreenChart } from '@/components/dashboard/FullscreenChart';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -49,6 +48,7 @@ const Dashboard = () => {
   // Alerts
   const [alertsPanelOpen, setAlertsPanelOpen] = useState(false);
   const [portfolioPanelOpen, setPortfolioPanelOpen] = useState(false);
+  const [marketInsightsOpen, setMarketInsightsOpen] = useState(false);
   const {
     alerts,
     triggeredAlerts,
@@ -170,6 +170,7 @@ const Dashboard = () => {
         <DashboardHeader 
           onMenuClick={() => setSidebarOpen(true)} 
           onPortfolioClick={() => setPortfolioPanelOpen(true)}
+          onMarketInsightsClick={() => setMarketInsightsOpen(true)}
           onRefresh={refreshMarket}
           isRefreshing={marketLoading}
           lastUpdated={lastUpdated}
@@ -253,16 +254,6 @@ const Dashboard = () => {
                   currentPrice={currentSymbol.price}
                 />
               </div>
-
-              {/* Sector Rotation & Economic Calendar */}
-              <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <SectorRotation 
-                  symbols={marketSymbols} 
-                  onSelectSymbol={handleSymbolSelect}
-                />
-                <EconomicCalendar />
-              </div>
-
               {/* Correlation Matrix */}
               <CorrelationMatrix symbols={marketSymbols} className="mt-4" />
             </div>
@@ -300,6 +291,14 @@ const Dashboard = () => {
             isOpen={portfolioPanelOpen}
             onClose={() => setPortfolioPanelOpen(false)}
             symbols={marketSymbols}
+          />
+
+          {/* Market Insights Panel */}
+          <MarketInsightsPanel
+            isOpen={marketInsightsOpen}
+            onClose={() => setMarketInsightsOpen(false)}
+            symbols={marketSymbols}
+            onSelectSymbol={handleSymbolSelect}
           />
         </div>
       </div>

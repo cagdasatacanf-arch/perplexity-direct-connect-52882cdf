@@ -90,7 +90,9 @@ serve(async (req) => {
       // Extract JSON array from response (handle potential markdown code blocks)
       const jsonMatch = content.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        marketData = JSON.parse(jsonMatch[0]);
+        // Sanitize JSON: remove + signs before numbers (invalid JSON but sometimes returned by AI)
+        let sanitizedJson = jsonMatch[0].replace(/:\s*\+(\d)/g, ': $1');
+        marketData = JSON.parse(sanitizedJson);
         // Add lastUpdated timestamp
         marketData = marketData.map(item => ({
           ...item,
@@ -99,6 +101,7 @@ serve(async (req) => {
       }
     } catch (parseError) {
       console.error('Failed to parse market data JSON:', parseError);
+      console.error('Raw content that failed to parse:', content);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to parse market data' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

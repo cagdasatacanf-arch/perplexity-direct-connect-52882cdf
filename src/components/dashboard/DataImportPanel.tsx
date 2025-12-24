@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { Upload, FileText, Loader2, CheckCircle, XCircle, Trash2, Database, RefreshCw } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Upload, FileText, Loader2, CheckCircle, XCircle, Trash2, Database, RefreshCw, Cloud, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,8 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 
 interface Dataset {
   id: string;
@@ -45,6 +47,33 @@ export const DataImportPanel = ({ isOpen, onClose, onDatasetProcessed }: DataImp
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [datasetName, setDatasetName] = useState('');
+  const [importingFileId, setImportingFileId] = useState<string | null>(null);
+
+  const {
+    isConnected: isDriveConnected,
+    isConnecting: isDriveConnecting,
+    files: driveFiles,
+    isLoadingFiles: isLoadingDriveFiles,
+    hasMoreFiles,
+    connect: connectDrive,
+    disconnect: disconnectDrive,
+    handleCallback: handleDriveCallback,
+    listFiles: listDriveFiles,
+    importFile: importDriveFile,
+  } = useGoogleDrive();
+
+  // Handle OAuth callback from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const oauthState = sessionStorage.getItem('oauth_state');
+
+    if (code && oauthState === 'google_drive') {
+      // Clear URL params
+      window.history.replaceState({}, '', window.location.pathname);
+      handleDriveCallback(code);
+    }
+  }, [handleDriveCallback]);
 
   // Fetch datasets
   const fetchDatasets = useCallback(async () => {
@@ -66,11 +95,14 @@ export const DataImportPanel = ({ isOpen, onClose, onDatasetProcessed }: DataImp
   }, []);
 
   // Load datasets when panel opens
-  useState(() => {
+  useEffect(() => {
     if (isOpen) {
       fetchDatasets();
+      if (isDriveConnected) {
+        listDriveFiles();
+      }
     }
-  });
+  }, [isOpen, isDriveConnected, fetchDatasets, listDriveFiles]);
 
   // Handle file upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,6 +237,27 @@ export const DataImportPanel = ({ isOpen, onClose, onDatasetProcessed }: DataImp
     }
   };
 
+  // Handle Drive file import
+  const handleDriveImport = async (file: { id: string; name: string; mimeType: string }) => {
+    setImportingFileId(file.id);
+    try {
+      const datasetId = await importDriveFile(file, datasetName || undefined);
+      if (datasetId) {
+        onDatasetProcessed?.(datasetId);
+        setDatasetName('');
+        fetchDatasets();
+      }
+    } finally {
+      setImportingFileId(null);
+    }
+  };
+
+  const formatDriveFileSize = (size?: string) => {
+    if (!size) return 'Unknown size';
+    const bytes = parseInt(size);
+    return formatFileSize(bytes);
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="right" className="w-full sm:w-[500px] sm:max-w-[500px] p-0">
@@ -217,60 +270,200 @@ export const DataImportPanel = ({ isOpen, onClose, onDatasetProcessed }: DataImp
 
         <ScrollArea className="h-[calc(100vh-60px)]">
           <div className="p-4 space-y-4">
-            {/* Upload Section */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  Upload Dataset
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <Label htmlFor="dataset-name" className="text-xs">Dataset Name (optional)</Label>
-                  <Input
-                    id="dataset-name"
-                    placeholder="My Financial Data"
-                    value={datasetName}
-                    onChange={(e) => setDatasetName(e.target.value)}
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div>
-                  <Label className="text-xs">File (CSV or JSON)</Label>
-                  <div className="mt-1 border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-colors">
-                    <input
-                      type="file"
-                      accept=".csv,.json"
-                      onChange={handleFileUpload}
-                      disabled={isUploading}
-                      className="hidden"
-                      id="file-upload"
-                    />
-                    <label htmlFor="file-upload" className="cursor-pointer">
-                      {isUploading ? (
-                        <div className="space-y-2">
-                          <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
-                          <p className="text-sm text-muted-foreground">Uploading...</p>
-                          <Progress value={uploadProgress} className="h-2" />
-                        </div>
-                      ) : (
-                        <>
-                          <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground">
-                            Click to upload CSV or JSON
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Max 100MB • Auto-detects date & price columns
-                          </p>
-                        </>
+            <Tabs defaultValue="upload" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="upload">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload
+                </TabsTrigger>
+                <TabsTrigger value="drive">
+                  <Cloud className="h-4 w-4 mr-2" />
+                  Google Drive
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Local Upload Tab */}
+              <TabsContent value="upload" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Upload className="h-4 w-4" />
+                      Upload Dataset
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <Label htmlFor="dataset-name" className="text-xs">Dataset Name (optional)</Label>
+                      <Input
+                        id="dataset-name"
+                        placeholder="My Financial Data"
+                        value={datasetName}
+                        onChange={(e) => setDatasetName(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label className="text-xs">File (CSV or JSON)</Label>
+                      <div className="mt-1 border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-colors">
+                        <input
+                          type="file"
+                          accept=".csv,.json"
+                          onChange={handleFileUpload}
+                          disabled={isUploading}
+                          className="hidden"
+                          id="file-upload"
+                        />
+                        <label htmlFor="file-upload" className="cursor-pointer">
+                          {isUploading ? (
+                            <div className="space-y-2">
+                              <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
+                              <p className="text-sm text-muted-foreground">Uploading...</p>
+                              <Progress value={uploadProgress} className="h-2" />
+                            </div>
+                          ) : (
+                            <>
+                              <FileText className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                              <p className="text-sm text-muted-foreground">
+                                Click to upload CSV or JSON
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Max 100MB • Auto-detects date & price columns
+                              </p>
+                            </>
+                          )}
+                        </label>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Google Drive Tab */}
+              <TabsContent value="drive" className="space-y-4 mt-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Cloud className="h-4 w-4" />
+                        Google Drive
+                      </span>
+                      {isDriveConnected && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={disconnectDrive}
+                          className="text-xs h-7"
+                        >
+                          <LogOut className="h-3 w-3 mr-1" />
+                          Disconnect
+                        </Button>
                       )}
-                    </label>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {!isDriveConnected ? (
+                      <div className="text-center py-4">
+                        <Cloud className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Connect to Google Drive to import large datasets directly
+                        </p>
+                        <Button 
+                          onClick={connectDrive} 
+                          disabled={isDriveConnecting}
+                          className="w-full"
+                        >
+                          {isDriveConnecting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Connecting...
+                            </>
+                          ) : (
+                            <>
+                              <Cloud className="h-4 w-4 mr-2" />
+                              Connect Google Drive
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-muted-foreground">
+                            Select a CSV, JSON, or Google Sheet to import
+                          </p>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => listDriveFiles()} 
+                            disabled={isLoadingDriveFiles}
+                          >
+                            <RefreshCw className={`h-4 w-4 ${isLoadingDriveFiles ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </div>
+
+                        {isLoadingDriveFiles && driveFiles.length === 0 ? (
+                          <div className="flex items-center justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          </div>
+                        ) : driveFiles.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No compatible files found in Drive
+                          </p>
+                        ) : (
+                          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                            {driveFiles.map((file) => (
+                              <div
+                                key={file.id}
+                                className="p-3 rounded-lg border bg-muted/30 flex items-center justify-between gap-2"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{file.name}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {file.mimeType === 'application/vnd.google-apps.spreadsheet' 
+                                      ? 'Google Sheet' 
+                                      : file.mimeType.split('/')[1]?.toUpperCase() || 'File'
+                                    }
+                                    {file.size && ` • ${formatDriveFileSize(file.size)}`}
+                                  </p>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleDriveImport(file)}
+                                  disabled={importingFileId === file.id}
+                                  className="shrink-0"
+                                >
+                                  {importingFileId === file.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    'Import'
+                                  )}
+                                </Button>
+                              </div>
+                            ))}
+                            
+                            {hasMoreFiles && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => listDriveFiles(true)}
+                                disabled={isLoadingDriveFiles}
+                                className="w-full"
+                              >
+                                {isLoadingDriveFiles ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : null}
+                                Load More
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
 
             {/* Datasets List */}
             <Card>
@@ -349,10 +542,10 @@ export const DataImportPanel = ({ isOpen, onClose, onDatasetProcessed }: DataImp
             {/* Instructions */}
             <Card>
               <CardContent className="pt-4">
-                <h4 className="font-medium text-sm mb-2">Supported Data Formats</h4>
+                <h4 className="font-medium text-sm mb-2">Supported Data Sources</h4>
                 <ul className="text-xs text-muted-foreground space-y-1">
-                  <li>• CSV with headers (date, price, volume columns)</li>
-                  <li>• JSON array of objects with date/price fields</li>
+                  <li>• Local files: CSV, JSON (up to 100MB)</li>
+                  <li>• Google Drive: CSV, JSON, Google Sheets</li>
                   <li>• Auto-detects: date, open, high, low, close, volume</li>
                   <li>• Aggregates data by day for efficient charting</li>
                 </ul>

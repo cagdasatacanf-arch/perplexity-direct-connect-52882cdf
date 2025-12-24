@@ -108,3 +108,90 @@ export const filterByPeriod = (data: OHLCData[], period: string): OHLCData[] => 
 
   return data.slice(-Math.min(daysToShow, data.length));
 };
+
+// Calculate Pearson correlation coefficient between two arrays
+export const calculateCorrelation = (arr1: number[], arr2: number[]): number => {
+  if (arr1.length !== arr2.length || arr1.length < 2) return 0;
+  
+  const n = arr1.length;
+  const mean1 = arr1.reduce((a, b) => a + b, 0) / n;
+  const mean2 = arr2.reduce((a, b) => a + b, 0) / n;
+  
+  let numerator = 0;
+  let sum1Sq = 0;
+  let sum2Sq = 0;
+  
+  for (let i = 0; i < n; i++) {
+    const diff1 = arr1[i] - mean1;
+    const diff2 = arr2[i] - mean2;
+    numerator += diff1 * diff2;
+    sum1Sq += diff1 * diff1;
+    sum2Sq += diff2 * diff2;
+  }
+  
+  const denominator = Math.sqrt(sum1Sq * sum2Sq);
+  if (denominator === 0) return 0;
+  
+  return numerator / denominator;
+};
+
+// Calculate daily returns from OHLC data
+export const calculateReturns = (data: OHLCData[]): number[] => {
+  const returns: number[] = [];
+  for (let i = 1; i < data.length; i++) {
+    const dailyReturn = (data[i].close - data[i - 1].close) / data[i - 1].close;
+    returns.push(dailyReturn);
+  }
+  return returns;
+};
+
+// Generate seeded OHLC data for consistent correlations
+export const generateSeededOHLCData = (
+  basePrice: number, 
+  days: number = 90,
+  seed: number = 0,
+  marketFactor: number[] = []
+): OHLCData[] => {
+  const data: OHLCData[] = [];
+  let price = basePrice;
+  const now = new Date();
+
+  // Simple seeded random function
+  const seededRandom = (s: number) => {
+    const x = Math.sin(s) * 10000;
+    return x - Math.floor(x);
+  };
+
+  for (let i = days; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    
+    const volatility = 0.02;
+    let change = (seededRandom(seed + i) - 0.5) * 2 * volatility;
+    
+    // Add market factor influence if provided
+    if (marketFactor.length > 0 && i < marketFactor.length) {
+      const marketInfluence = marketFactor[days - i] || 0;
+      change = change * 0.4 + marketInfluence * 0.6; // 60% market influence
+    }
+    
+    const open = price;
+    const close = price * (1 + change);
+    const high = Math.max(open, close) * (1 + seededRandom(seed + i + 1000) * 0.01);
+    const low = Math.min(open, close) * (1 - seededRandom(seed + i + 2000) * 0.01);
+    const volume = Math.floor(seededRandom(seed + i + 3000) * 50000000) + 10000000;
+
+    data.push({
+      date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      open: Number(open.toFixed(2)),
+      high: Number(high.toFixed(2)),
+      low: Number(low.toFixed(2)),
+      close: Number(close.toFixed(2)),
+      volume,
+    });
+
+    price = close;
+  }
+
+  return data;
+};

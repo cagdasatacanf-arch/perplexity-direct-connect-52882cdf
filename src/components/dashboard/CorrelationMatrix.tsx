@@ -4,40 +4,45 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Grid3X3 } from 'lucide-react';
 import type { MarketSymbol } from '@/hooks/useMarketData';
+import { generateSeededOHLCData, calculateReturns, calculateCorrelation } from '@/lib/sampleData';
 
 interface CorrelationMatrixProps {
   symbols: MarketSymbol[];
   className?: string;
 }
 
-// Simulated correlation data based on historical patterns
-// In production, this would be calculated from actual price data
-const generateCorrelation = (symbol1: string, symbol2: string): number => {
-  if (symbol1 === symbol2) return 1;
-  
-  // Known correlations based on market behavior
-  const correlationMap: Record<string, Record<string, number>> = {
-    'AAPL': { 'GOOGL': 0.72, 'MSFT': 0.85, 'AMZN': 0.68, 'TSLA': 0.45, 'NVDA': 0.78, 'XAU': -0.15, 'XAG': -0.12 },
-    'GOOGL': { 'AAPL': 0.72, 'MSFT': 0.82, 'AMZN': 0.75, 'TSLA': 0.42, 'NVDA': 0.71, 'XAU': -0.18, 'XAG': -0.14 },
-    'MSFT': { 'AAPL': 0.85, 'GOOGL': 0.82, 'AMZN': 0.70, 'TSLA': 0.38, 'NVDA': 0.80, 'XAU': -0.20, 'XAG': -0.16 },
-    'AMZN': { 'AAPL': 0.68, 'GOOGL': 0.75, 'MSFT': 0.70, 'TSLA': 0.52, 'NVDA': 0.65, 'XAU': -0.10, 'XAG': -0.08 },
-    'TSLA': { 'AAPL': 0.45, 'GOOGL': 0.42, 'MSFT': 0.38, 'AMZN': 0.52, 'NVDA': 0.55, 'XAU': 0.05, 'XAG': 0.08 },
-    'NVDA': { 'AAPL': 0.78, 'GOOGL': 0.71, 'MSFT': 0.80, 'AMZN': 0.65, 'TSLA': 0.55, 'XAU': -0.12, 'XAG': -0.10 },
-    'XAU': { 'AAPL': -0.15, 'GOOGL': -0.18, 'MSFT': -0.20, 'AMZN': -0.10, 'TSLA': 0.05, 'NVDA': -0.12, 'XAG': 0.92 },
-    'XAG': { 'AAPL': -0.12, 'GOOGL': -0.14, 'MSFT': -0.16, 'AMZN': -0.08, 'TSLA': 0.08, 'NVDA': -0.10, 'XAU': 0.92 },
-  };
+// Seed values for consistent data generation per symbol
+const SYMBOL_SEEDS: Record<string, number> = {
+  'AAPL': 1001,
+  'GOOGL': 2002,
+  'MSFT': 3003,
+  'AMZN': 4004,
+  'TSLA': 5005,
+  'NVDA': 6006,
+  'XAU': 7007,
+  'XAG': 8008,
+};
 
-  return correlationMap[symbol1]?.[symbol2] ?? 0;
+// Market factor coefficients - how much each symbol follows the market
+const MARKET_BETA: Record<string, number> = {
+  'AAPL': 0.85,
+  'GOOGL': 0.80,
+  'MSFT': 0.88,
+  'AMZN': 0.75,
+  'TSLA': 0.45,  // More volatile, less correlated
+  'NVDA': 0.82,
+  'XAU': -0.15,  // Negative correlation - hedge asset
+  'XAG': -0.12,  // Negative correlation - hedge asset
 };
 
 const getCorrelationColor = (value: number): string => {
-  if (value >= 0.7) return 'bg-chart-up/80 text-chart-up-foreground';
-  if (value >= 0.4) return 'bg-chart-up/40 text-foreground';
+  if (value >= 0.7) return 'bg-chart-up/80 text-white dark:text-white';
+  if (value >= 0.4) return 'bg-chart-up/50 text-foreground';
   if (value >= 0.1) return 'bg-chart-up/20 text-foreground';
   if (value >= -0.1) return 'bg-muted text-muted-foreground';
   if (value >= -0.4) return 'bg-chart-down/20 text-foreground';
-  if (value >= -0.7) return 'bg-chart-down/40 text-foreground';
-  return 'bg-chart-down/80 text-chart-down-foreground';
+  if (value >= -0.7) return 'bg-chart-down/50 text-foreground';
+  return 'bg-chart-down/80 text-white dark:text-white';
 };
 
 const getCorrelationLabel = (value: number): string => {
@@ -51,11 +56,101 @@ const getCorrelationLabel = (value: number): string => {
 };
 
 export const CorrelationMatrix = ({ symbols, className }: CorrelationMatrixProps) => {
-  const matrix = useMemo(() => {
-    return symbols.map(row => 
-      symbols.map(col => generateCorrelation(row.id, col.id))
-    );
+  // Generate OHLC data and calculate returns for each symbol
+  const symbolReturns = useMemo(() => {
+    const days = 90;
+    const returns: Record<string, number[]> = {};
+    
+    // First, generate a market factor
+    const marketData = generateSeededOHLCData(100, days, 9999);
+    const marketReturns = calculateReturns(marketData);
+    
+    // Generate data for each symbol with market influence
+    symbols.forEach(symbol => {
+      const seed = SYMBOL_SEEDS[symbol.id] || Math.random() * 10000;
+      const beta = MARKET_BETA[symbol.id] || 0.5;
+      
+      // Create influenced returns based on market and individual behavior
+      const symbolData = generateSeededOHLCData(symbol.price, days, seed);
+      const baseReturns = calculateReturns(symbolData);
+      
+      // Blend symbol returns with market returns based on beta
+      const blendedReturns = baseReturns.map((r, i) => {
+        const marketR = marketReturns[i] || 0;
+        return r * (1 - Math.abs(beta)) + marketR * beta;
+      });
+      
+      returns[symbol.id] = blendedReturns;
+    });
+    
+    return returns;
   }, [symbols]);
+
+  // Calculate correlation matrix
+  const { matrix, insights } = useMemo(() => {
+    const correlationMatrix = symbols.map(row => 
+      symbols.map(col => {
+        if (row.id === col.id) return 1;
+        
+        const returns1 = symbolReturns[row.id] || [];
+        const returns2 = symbolReturns[col.id] || [];
+        
+        return calculateCorrelation(returns1, returns2);
+      })
+    );
+
+    // Generate dynamic insights
+    const allCorrelations: { pair: string; value: number }[] = [];
+    for (let i = 0; i < symbols.length; i++) {
+      for (let j = i + 1; j < symbols.length; j++) {
+        allCorrelations.push({
+          pair: `${symbols[i].id}-${symbols[j].id}`,
+          value: correlationMatrix[i][j],
+        });
+      }
+    }
+
+    const sorted = [...allCorrelations].sort((a, b) => b.value - a.value);
+    const strongest = sorted[0];
+    const weakest = sorted[sorted.length - 1];
+    
+    const techStocks = symbols.filter(s => s.category === 'stock').map(s => s.id);
+    const commodities = symbols.filter(s => s.category === 'metal').map(s => s.id);
+    
+    let avgTechCorr = 0;
+    let techCount = 0;
+    for (let i = 0; i < symbols.length; i++) {
+      for (let j = i + 1; j < symbols.length; j++) {
+        if (techStocks.includes(symbols[i].id) && techStocks.includes(symbols[j].id)) {
+          avgTechCorr += correlationMatrix[i][j];
+          techCount++;
+        }
+      }
+    }
+    avgTechCorr = techCount > 0 ? avgTechCorr / techCount : 0;
+
+    const insightList: string[] = [];
+    
+    if (strongest) {
+      insightList.push(
+        `Strongest correlation: ${strongest.pair.replace('-', ' & ')} (${strongest.value.toFixed(2)})`
+      );
+    }
+    
+    if (techCount > 0) {
+      insightList.push(
+        `Average tech stock correlation: ${avgTechCorr.toFixed(2)}`
+      );
+    }
+    
+    if (commodities.length > 0 && weakest && weakest.value < 0) {
+      insightList.push(
+        `Commodities provide diversification with negative correlation to tech`
+      );
+    }
+
+    return { matrix: correlationMatrix, insights: insightList };
+  }, [symbols, symbolReturns]);
 
   return (
     <Card className={cn("", className)}>
@@ -64,7 +159,7 @@ export const CorrelationMatrix = ({ symbols, className }: CorrelationMatrixProps
           <Grid3X3 className="h-5 w-5 text-primary" />
           Correlation Matrix
           <Badge variant="outline" className="ml-auto font-normal text-xs">
-            30-day rolling
+            90-day returns
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -73,7 +168,7 @@ export const CorrelationMatrix = ({ symbols, className }: CorrelationMatrixProps
           <div className="min-w-[400px]">
             {/* Header row */}
             <div className="flex">
-              <div className="w-16 shrink-0" /> {/* Empty corner */}
+              <div className="w-16 shrink-0" />
               {symbols.map(symbol => (
                 <div
                   key={symbol.id}
@@ -87,12 +182,10 @@ export const CorrelationMatrix = ({ symbols, className }: CorrelationMatrixProps
             {/* Matrix rows */}
             {symbols.map((rowSymbol, rowIndex) => (
               <div key={rowSymbol.id} className="flex">
-                {/* Row label */}
                 <div className="w-16 shrink-0 flex items-center text-xs font-medium text-muted-foreground pr-2">
                   {rowSymbol.id}
                 </div>
                 
-                {/* Correlation cells */}
                 {matrix[rowIndex].map((correlation, colIndex) => {
                   const isDiagonal = rowIndex === colIndex;
                   
@@ -140,15 +233,17 @@ export const CorrelationMatrix = ({ symbols, className }: CorrelationMatrixProps
           </div>
         </div>
 
-        {/* Insight */}
-        <div className="mt-4 p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground">
-          <p className="font-medium text-foreground mb-1">Key Insights:</p>
-          <ul className="space-y-1 list-disc list-inside">
-            <li>Tech stocks (AAPL, MSFT, NVDA) show strong positive correlation</li>
-            <li>Gold & Silver are highly correlated (0.92) and hedge against tech</li>
-            <li>TSLA shows lower correlation with other tech stocks</li>
-          </ul>
-        </div>
+        {/* Dynamic Insights */}
+        {insights.length > 0 && (
+          <div className="mt-4 p-3 rounded-lg bg-muted/50 border text-xs text-muted-foreground">
+            <p className="font-medium text-foreground mb-1">Calculated Insights:</p>
+            <ul className="space-y-1 list-disc list-inside">
+              {insights.map((insight, i) => (
+                <li key={i}>{insight}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

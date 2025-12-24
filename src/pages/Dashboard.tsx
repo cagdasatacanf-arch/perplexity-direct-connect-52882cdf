@@ -11,6 +11,7 @@ import { AlertsPanel } from '@/components/dashboard/AlertsPanel';
 import { CommodityCards } from '@/components/dashboard/CommodityCards';
 import { AIMarketAnalysis } from '@/components/dashboard/AIMarketAnalysis';
 import { PortfolioPanel } from '@/components/dashboard/PortfolioPanel';
+import { CorrelationMatrix } from '@/components/dashboard/CorrelationMatrix';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { perplexityApi, type PerplexityResponse } from '@/lib/api/perplexity';
@@ -245,6 +246,12 @@ const Dashboard = () => {
                   currentPrice={currentSymbol.price}
                 />
               </div>
+
+              {/* Correlation Matrix */}
+              <CorrelationMatrix 
+                symbols={marketSymbols} 
+                className="mt-4"
+              />
             </div>
           </main>
 

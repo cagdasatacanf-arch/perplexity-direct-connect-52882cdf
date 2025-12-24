@@ -126,8 +126,20 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
     [data]
   );
 
+  const maxVolume = useMemo(() => 
+    Math.max(...data.map(d => d.volume)), 
+    [data]
+  );
+
   const formatPrice = (value: number) => 
     `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const formatVolume = (value: number) => {
+    if (value >= 1e9) return `${(value / 1e9).toFixed(1)}B`;
+    if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+    if (value >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
+    return value.toString();
+  };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.[0]) return null;
@@ -157,7 +169,23 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
           )}>
             {d.isUp ? '+' : ''}{((d.close - d.open) / d.open * 100).toFixed(2)}%
           </span>
+          <span className="text-muted-foreground">Volume:</span>
+          <span className="font-mono">{formatVolume(d.volume)}</span>
         </div>
+      </div>
+    );
+  };
+
+  const VolumeTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.[0]) return null;
+    
+    const d = payload[0].payload;
+    return (
+      <div className="bg-popover border border-border rounded-lg p-2 shadow-lg">
+        <p className="text-xs font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">
+          Volume: <span className="font-mono">{formatVolume(d.volume)}</span>
+        </p>
       </div>
     );
   };
@@ -332,6 +360,51 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
           )}
         </ComposedChart>
       </ResponsiveContainer>
+
+      {/* Volume Chart */}
+      <ResponsiveContainer width="100%" height={100}>
+        <ComposedChart 
+          data={chartData} 
+          margin={{ top: 0, right: 30, left: 10, bottom: 0 }}
+          barGap={0}
+          barCategoryGap="10%"
+        >
+          <CartesianGrid 
+            strokeDasharray="3 3" 
+            stroke="hsl(var(--border))" 
+            opacity={0.3}
+            vertical={false}
+            horizontal={false}
+          />
+          <XAxis 
+            dataKey="date" 
+            tick={false}
+            tickLine={false}
+            axisLine={{ stroke: 'hsl(var(--border))' }}
+          />
+          <YAxis 
+            domain={[0, maxVolume * 1.1]}
+            tickFormatter={formatVolume}
+            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+            tickLine={false}
+            axisLine={{ stroke: 'hsl(var(--border))' }}
+            width={80}
+            orientation="right"
+            tickCount={3}
+          />
+          <Tooltip content={<VolumeTooltip />} />
+          
+          <Bar dataKey="volume" radius={[1, 1, 0, 0]}>
+            {chartData.map((entry, index) => (
+              <Cell 
+                key={`vol-${index}`} 
+                fill={entry.isUp ? 'hsl(var(--chart-up))' : 'hsl(var(--chart-down))'}
+                fillOpacity={0.6}
+              />
+            ))}
+          </Bar>
+        </ComposedChart>
+      </ResponsiveContainer>
       
       {/* Legend */}
       <div className="flex items-center justify-center gap-6 mt-3 text-xs text-muted-foreground">
@@ -347,6 +420,10 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
             </div>
           </>
         )}
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-chart-up/60" />
+          <span>Volume</span>
+        </div>
         {indicators.includes('MA20') && (
           <div className="flex items-center gap-1.5">
             <span className="w-4 h-0.5 bg-chart-ma20 rounded" />

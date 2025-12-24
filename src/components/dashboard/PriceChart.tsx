@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   Cell,
   ReferenceArea,
+  ReferenceLine,
 } from 'recharts';
 import { cn } from '@/lib/utils';
 
@@ -89,6 +90,85 @@ const CandlestickBar = (props: any) => {
 };
 
 export const PriceChart = ({ data, chartType, indicators, className }: PriceChartProps) => {
+  // Calculate EMA helper
+  const calculateEMA = (prices: number[], period: number): number[] => {
+    const k = 2 / (period + 1);
+    const ema: number[] = [];
+    let prevEma = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
+    
+    for (let i = 0; i < prices.length; i++) {
+      if (i < period - 1) {
+        ema.push(NaN);
+      } else if (i === period - 1) {
+        ema.push(prevEma);
+      } else {
+        prevEma = prices[i] * k + prevEma * (1 - k);
+        ema.push(prevEma);
+      }
+    }
+    return ema;
+  };
+
+  // Calculate RSI
+  const rsiData = useMemo(() => {
+    if (!indicators.includes('RSI')) return [];
+    
+    const period = 14;
+    const changes = data.map((d, i) => i > 0 ? d.close - data[i - 1].close : 0);
+    const gains = changes.map(c => c > 0 ? c : 0);
+    const losses = changes.map(c => c < 0 ? Math.abs(c) : 0);
+    
+    const rsi: (number | undefined)[] = [];
+    let avgGain = gains.slice(1, period + 1).reduce((a, b) => a + b, 0) / period;
+    let avgLoss = losses.slice(1, period + 1).reduce((a, b) => a + b, 0) / period;
+    
+    for (let i = 0; i < data.length; i++) {
+      if (i < period) {
+        rsi.push(undefined);
+      } else if (i === period) {
+        const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+        rsi.push(100 - (100 / (1 + rs)));
+      } else {
+        avgGain = (avgGain * (period - 1) + gains[i]) / period;
+        avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
+        const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
+        rsi.push(100 - (100 / (1 + rs)));
+      }
+    }
+    return rsi;
+  }, [data, indicators]);
+
+  // Calculate MACD
+  const macdData = useMemo(() => {
+    if (!indicators.includes('MACD')) return { macd: [], signal: [], histogram: [] };
+    
+    const closes = data.map(d => d.close);
+    const ema12 = calculateEMA(closes, 12);
+    const ema26 = calculateEMA(closes, 26);
+    
+    const macdLine = ema12.map((v, i) => isNaN(v) || isNaN(ema26[i]) ? NaN : v - ema26[i]);
+    const validMacd = macdLine.filter(v => !isNaN(v));
+    const signalLine = calculateEMA(validMacd, 9);
+    
+    // Pad signal line to match data length
+    const paddedSignal: number[] = [];
+    let signalIndex = 0;
+    for (let i = 0; i < macdLine.length; i++) {
+      if (isNaN(macdLine[i])) {
+        paddedSignal.push(NaN);
+      } else {
+        paddedSignal.push(signalLine[signalIndex] || NaN);
+        signalIndex++;
+      }
+    }
+    
+    const histogram = macdLine.map((v, i) => 
+      isNaN(v) || isNaN(paddedSignal[i]) ? NaN : v - paddedSignal[i]
+    );
+    
+    return { macd: macdLine, signal: paddedSignal, histogram };
+  }, [data, indicators]);
+
   const chartData = useMemo(() => {
     return data.map((d, i) => {
       const ma20 = indicators.includes('MA20') && i >= 19
@@ -107,14 +187,17 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
         ma50,
         ma200,
         isUp: d.close >= d.open,
-        // For bar chart representation of candles
         candleBody: Math.abs(d.close - d.open),
         candleBase: Math.min(d.open, d.close),
         wickHigh: d.high - Math.max(d.open, d.close),
         wickLow: Math.min(d.open, d.close) - d.low,
+        rsi: rsiData[i],
+        macd: isNaN(macdData.macd[i]) ? undefined : macdData.macd[i],
+        macdSignal: isNaN(macdData.signal[i]) ? undefined : macdData.signal[i],
+        macdHistogram: isNaN(macdData.histogram[i]) ? undefined : macdData.histogram[i],
       };
     });
-  }, [data, indicators]);
+  }, [data, indicators, rsiData, macdData]);
 
   const minPrice = useMemo(() => 
     Math.min(...data.map(d => d.low)) * 0.995, 
@@ -186,6 +269,47 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
         <p className="text-xs text-muted-foreground">
           Volume: <span className="font-mono">{formatVolume(d.volume)}</span>
         </p>
+      </div>
+    );
+  };
+
+  const RSITooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.[0]) return null;
+    
+    const d = payload[0].payload;
+    if (d.rsi === undefined) return null;
+    
+    const rsiColor = d.rsi >= 70 ? 'text-chart-down' : d.rsi <= 30 ? 'text-chart-up' : 'text-foreground';
+    return (
+      <div className="bg-popover border border-border rounded-lg p-2 shadow-lg">
+        <p className="text-xs font-medium">{label}</p>
+        <p className="text-xs">
+          RSI(14): <span className={cn("font-mono font-medium", rsiColor)}>{d.rsi?.toFixed(2)}</span>
+        </p>
+      </div>
+    );
+  };
+
+  const MACDTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.[0]) return null;
+    
+    const d = payload[0].payload;
+    if (d.macd === undefined) return null;
+    
+    return (
+      <div className="bg-popover border border-border rounded-lg p-2 shadow-lg">
+        <p className="text-xs font-medium">{label}</p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+          <span className="text-muted-foreground">MACD:</span>
+          <span className="font-mono text-chart-macd">{d.macd?.toFixed(3)}</span>
+          <span className="text-muted-foreground">Signal:</span>
+          <span className="font-mono text-chart-macd-signal">{d.macdSignal?.toFixed(3)}</span>
+          <span className="text-muted-foreground">Histogram:</span>
+          <span className={cn(
+            "font-mono",
+            d.macdHistogram >= 0 ? "text-chart-up" : "text-chart-down"
+          )}>{d.macdHistogram?.toFixed(3)}</span>
+        </div>
       </div>
     );
   };
@@ -405,25 +529,149 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
           </Bar>
         </ComposedChart>
       </ResponsiveContainer>
+
+      {/* RSI Panel */}
+      {indicators.includes('RSI') && (
+        <div className="mt-2">
+          <div className="flex items-center justify-between px-2 mb-1">
+            <span className="text-xs font-medium text-muted-foreground">RSI (14)</span>
+            <div className="flex gap-3 text-xs text-muted-foreground">
+              <span>Overbought: 70</span>
+              <span>Oversold: 30</span>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={100}>
+            <ComposedChart 
+              data={chartData} 
+              margin={{ top: 5, right: 30, left: 10, bottom: 0 }}
+            >
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke="hsl(var(--border))" 
+                opacity={0.3}
+                vertical={false}
+              />
+              <XAxis 
+                dataKey="date" 
+                tick={false}
+                tickLine={false}
+                axisLine={{ stroke: 'hsl(var(--border))' }}
+              />
+              <YAxis 
+                domain={[0, 100]}
+                ticks={[30, 50, 70]}
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tickLine={false}
+                axisLine={{ stroke: 'hsl(var(--border))' }}
+                width={80}
+                orientation="right"
+              />
+              <Tooltip content={<RSITooltip />} />
+              
+              {/* Overbought/Oversold zones */}
+              <ReferenceArea y1={70} y2={100} fill="hsl(var(--chart-down))" fillOpacity={0.1} />
+              <ReferenceArea y1={0} y2={30} fill="hsl(var(--chart-up))" fillOpacity={0.1} />
+              <ReferenceLine y={70} stroke="hsl(var(--chart-down))" strokeDasharray="3 3" strokeOpacity={0.5} />
+              <ReferenceLine y={30} stroke="hsl(var(--chart-up))" strokeDasharray="3 3" strokeOpacity={0.5} />
+              <ReferenceLine y={50} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" strokeOpacity={0.3} />
+              
+              <Line
+                type="monotone"
+                dataKey="rsi"
+                stroke="hsl(var(--chart-rsi))"
+                strokeWidth={1.5}
+                dot={false}
+                connectNulls
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* MACD Panel */}
+      {indicators.includes('MACD') && (
+        <div className="mt-2">
+          <div className="flex items-center justify-between px-2 mb-1">
+            <span className="text-xs font-medium text-muted-foreground">MACD (12, 26, 9)</span>
+          </div>
+          <ResponsiveContainer width="100%" height={120}>
+            <ComposedChart 
+              data={chartData} 
+              margin={{ top: 5, right: 30, left: 10, bottom: 0 }}
+            >
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke="hsl(var(--border))" 
+                opacity={0.3}
+                vertical={false}
+              />
+              <XAxis 
+                dataKey="date" 
+                tick={false}
+                tickLine={false}
+                axisLine={{ stroke: 'hsl(var(--border))' }}
+              />
+              <YAxis 
+                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                tickLine={false}
+                axisLine={{ stroke: 'hsl(var(--border))' }}
+                width={80}
+                orientation="right"
+                tickFormatter={(v) => v.toFixed(1)}
+              />
+              <Tooltip content={<MACDTooltip />} />
+              
+              <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeOpacity={0.5} />
+              
+              {/* Histogram */}
+              <Bar dataKey="macdHistogram" radius={[1, 1, 0, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell 
+                    key={`macd-hist-${index}`} 
+                    fill={(entry.macdHistogram ?? 0) >= 0 ? 'hsl(var(--chart-up))' : 'hsl(var(--chart-down))'}
+                    fillOpacity={0.6}
+                  />
+                ))}
+              </Bar>
+              
+              {/* MACD Line */}
+              <Line
+                type="monotone"
+                dataKey="macd"
+                stroke="hsl(var(--chart-macd))"
+                strokeWidth={1.5}
+                dot={false}
+                connectNulls
+              />
+              
+              {/* Signal Line */}
+              <Line
+                type="monotone"
+                dataKey="macdSignal"
+                stroke="hsl(var(--chart-macd-signal))"
+                strokeWidth={1.5}
+                dot={false}
+                connectNulls
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
       
       {/* Legend */}
-      <div className="flex items-center justify-center gap-6 mt-3 text-xs text-muted-foreground">
+      <div className="flex items-center justify-center gap-6 mt-3 text-xs text-muted-foreground flex-wrap">
         {chartType === 'candlestick' && (
           <>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-sm bg-chart-up" />
-              <span>Up (Close ≥ Open)</span>
+              <span>Up</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-3 h-3 rounded-sm bg-chart-down" />
-              <span>Down (Close &lt; Open)</span>
+              <span>Down</span>
             </div>
           </>
         )}
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-sm bg-chart-up/60" />
-          <span>Volume</span>
-        </div>
         {indicators.includes('MA20') && (
           <div className="flex items-center gap-1.5">
             <span className="w-4 h-0.5 bg-chart-ma20 rounded" />
@@ -441,6 +689,24 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
             <span className="w-4 h-0.5 bg-chart-ma200 rounded" />
             <span>MA-200</span>
           </div>
+        )}
+        {indicators.includes('RSI') && (
+          <div className="flex items-center gap-1.5">
+            <span className="w-4 h-0.5 bg-chart-rsi rounded" />
+            <span>RSI</span>
+          </div>
+        )}
+        {indicators.includes('MACD') && (
+          <>
+            <div className="flex items-center gap-1.5">
+              <span className="w-4 h-0.5 bg-chart-macd rounded" />
+              <span>MACD</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-4 h-0.5 bg-chart-macd-signal rounded" />
+              <span>Signal</span>
+            </div>
+          </>
         )}
       </div>
     </div>

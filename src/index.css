@@ -54,6 +54,9 @@
     --chart-ma200: 45 90% 55%;
     --chart-rsi: 271 81% 56%;
     --chart-bb: 180 60% 50%;
+    --chart-macd: 217 91% 60%;
+    --chart-macd-signal: 350 65% 55%;
+    --chart-macd-histogram: 152 56% 42%;
     
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
@@ -115,6 +118,9 @@
     --chart-ma200: 45 90% 60%;
     --chart-rsi: 271 81% 60%;
     --chart-bb: 180 60% 55%;
+    --chart-macd: 217 91% 65%;
+    --chart-macd-signal: 350 65% 60%;
+    --chart-macd-histogram: 152 56% 50%;
     
     /* Sidebar - dark mode */
     --sidebar-background: 180 12% 6%;

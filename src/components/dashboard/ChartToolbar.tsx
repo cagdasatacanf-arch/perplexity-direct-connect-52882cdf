@@ -33,6 +33,7 @@ const indicatorOptions = [
   { id: 'MA50', label: 'MA-50', color: 'bg-chart-ma50' },
   { id: 'MA200', label: 'MA-200', color: 'bg-chart-ma200' },
   { id: 'RSI', label: 'RSI', color: 'bg-chart-rsi' },
+  { id: 'MACD', label: 'MACD', color: 'bg-chart-macd' },
   { id: 'BB', label: 'Bollinger', color: 'bg-chart-bb' },
 ];
 

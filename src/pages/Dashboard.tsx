@@ -12,8 +12,8 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { perplexityApi, type PerplexityResponse } from '@/lib/api/perplexity';
 import { useAlerts } from '@/hooks/useAlerts';
+import { useMarketData } from '@/hooks/useMarketData';
 import {
-  sampleSymbols,
   generateOHLCData,
   calculateStats,
   filterByPeriod,
@@ -26,6 +26,9 @@ const Dashboard = () => {
   const [chartType, setChartType] = useState<'candlestick' | 'line' | 'area'>('line');
   const [indicators, setIndicators] = useState<string[]>(['MA20']);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Real-time market data
+  const { symbols: marketSymbols, isLoading: marketLoading, lastUpdated, refresh: refreshMarket } = useMarketData();
   
   // AI State
   const [aiPanelOpen, setAIPanelOpen] = useState(false);
@@ -45,10 +48,10 @@ const Dashboard = () => {
     checkAlerts,
   } = useAlerts();
 
-  // Get current symbol data
+  // Get current symbol data from live market data
   const currentSymbol = useMemo(() => 
-    sampleSymbols.find(s => s.id === selectedSymbol) || sampleSymbols[0],
-    [selectedSymbol]
+    marketSymbols.find(s => s.id === selectedSymbol) || marketSymbols[0],
+    [selectedSymbol, marketSymbols]
   );
 
   // Generate chart data
@@ -143,7 +146,7 @@ const Dashboard = () => {
           {/* Desktop Sidebar */}
           <SymbolSidebar
             className="hidden lg:flex"
-            symbols={sampleSymbols}
+            symbols={marketSymbols}
             selectedSymbol={selectedSymbol}
             onSelectSymbol={handleSymbolSelect}
             onAISearch={handleAISearch}
@@ -154,7 +157,7 @@ const Dashboard = () => {
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
             <SheetContent side="left" className="p-0 w-72">
               <SymbolSidebar
-                symbols={sampleSymbols}
+                symbols={marketSymbols}
                 selectedSymbol={selectedSymbol}
                 onSelectSymbol={handleSymbolSelect}
                 onAISearch={handleAISearch}

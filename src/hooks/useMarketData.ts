@@ -12,6 +12,7 @@ export interface MarketSymbol {
   low?: number;
   volume?: string;
   category: 'stock' | 'metal';
+  unit?: string;
   lastUpdated?: string;
 }
 
@@ -23,14 +24,14 @@ interface MarketDataResponse {
 }
 
 const DEFAULT_SYMBOLS: MarketSymbol[] = [
-  { id: 'AAPL', name: 'Apple Inc.', price: 178.50, change: 2.35, category: 'stock' },
-  { id: 'GOOGL', name: 'Alphabet Inc.', price: 141.25, change: -0.85, category: 'stock' },
-  { id: 'MSFT', name: 'Microsoft Corp.', price: 378.90, change: 4.20, category: 'stock' },
-  { id: 'AMZN', name: 'Amazon.com Inc.', price: 178.25, change: 1.15, category: 'stock' },
-  { id: 'TSLA', name: 'Tesla Inc.', price: 248.50, change: -3.25, category: 'stock' },
-  { id: 'NVDA', name: 'NVIDIA Corp.', price: 875.30, change: 12.45, category: 'stock' },
-  { id: 'XAU', name: 'Gold Spot', price: 2024.50, change: 8.75, category: 'metal' },
-  { id: 'XAG', name: 'Silver Spot', price: 23.45, change: 0.32, category: 'metal' },
+  { id: 'AAPL', name: 'Apple Inc.', price: 178.50, change: 2.35, category: 'stock', unit: 'USD' },
+  { id: 'GOOGL', name: 'Alphabet Inc.', price: 141.25, change: -0.85, category: 'stock', unit: 'USD' },
+  { id: 'MSFT', name: 'Microsoft Corp.', price: 378.90, change: 4.20, category: 'stock', unit: 'USD' },
+  { id: 'AMZN', name: 'Amazon.com Inc.', price: 178.25, change: 1.15, category: 'stock', unit: 'USD' },
+  { id: 'TSLA', name: 'Tesla Inc.', price: 248.50, change: -3.25, category: 'stock', unit: 'USD' },
+  { id: 'NVDA', name: 'NVIDIA Corp.', price: 875.30, change: 12.45, category: 'stock', unit: 'USD' },
+  { id: 'XAU', name: 'Gold Spot', price: 2650.50, change: 8.75, category: 'metal', unit: 'USD/oz' },
+  { id: 'XAG', name: 'Silver Spot', price: 31.45, change: 0.32, category: 'metal', unit: 'USD/oz' },
 ];
 
 const SYMBOL_IDS = DEFAULT_SYMBOLS.map(s => s.id);
@@ -55,7 +56,7 @@ export const useMarketData = () => {
         throw new Error(fnError.message);
       }
 
-      if (data?.success && data.data) {
+      if (data?.success && data.data && data.data.length > 0) {
         // Merge with defaults to preserve category info
         const updatedSymbols = DEFAULT_SYMBOLS.map(defaultSymbol => {
           const liveData = data.data?.find(
@@ -66,9 +67,11 @@ export const useMarketData = () => {
               ...defaultSymbol,
               price: liveData.price || defaultSymbol.price,
               change: liveData.changePercent || liveData.change || defaultSymbol.change,
+              changePercent: liveData.changePercent,
               high: liveData.high,
               low: liveData.low,
               volume: liveData.volume,
+              unit: liveData.unit || defaultSymbol.unit,
               lastUpdated: liveData.lastUpdated,
             };
           }

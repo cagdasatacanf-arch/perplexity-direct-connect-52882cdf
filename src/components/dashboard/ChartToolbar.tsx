@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Download, Image } from 'lucide-react';
+import { TrendingUp, TrendingDown, Download, Image, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -24,6 +24,9 @@ interface ChartToolbarProps {
   onIndicatorToggle: (indicator: string) => void;
   onExportPNG?: () => void;
   onExportCSV?: () => void;
+  alertsCount?: number;
+  onOpenAlerts?: () => void;
+  alertButton?: React.ReactNode;
 }
 
 const periods = ['1D', '1W', '1M', '3M', '6M', '1Y', '5Y', 'MAX'];
@@ -47,6 +50,9 @@ export const ChartToolbar = ({
   onIndicatorToggle,
   onExportPNG,
   onExportCSV,
+  alertsCount = 0,
+  onOpenAlerts,
+  alertButton,
 }: ChartToolbarProps) => {
   return (
     <div className="border-b border-border bg-card p-4 space-y-4">
@@ -77,8 +83,23 @@ export const ChartToolbar = ({
           </div>
         </div>
 
-        {/* Export Buttons */}
+        {/* Alert & Export Buttons */}
         <div className="flex items-center gap-2">
+          {alertButton}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onOpenAlerts}
+            className="relative"
+          >
+            <Bell className="h-4 w-4 mr-1" />
+            Alerts
+            {alertsCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
+                {alertsCount}
+              </span>
+            )}
+          </Button>
           <Button variant="outline" size="sm" onClick={onExportPNG}>
             <Image className="h-4 w-4 mr-1" />
             PNG

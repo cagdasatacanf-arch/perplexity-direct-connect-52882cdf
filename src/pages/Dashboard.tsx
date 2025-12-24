@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { perplexityApi, type PerplexityResponse } from '@/lib/api/perplexity';
 import { useAlerts } from '@/hooks/useAlerts';
 import { useMarketData } from '@/hooks/useMarketData';
+import { exportChartAsPNG, exportDataAsCSV } from '@/lib/exportUtils';
 import {
   generateOHLCData,
   calculateStats,
@@ -129,13 +130,23 @@ const Dashboard = () => {
     toast.success(`Alert created for ${alert.symbolId} ${alert.condition === 'above' ? '≥' : '≤'} $${alert.targetPrice.toFixed(2)}`);
   }, [addAlert]);
 
-  const handleExportPNG = useCallback(() => {
-    toast.success('Chart exported as PNG');
-  }, []);
+  const handleExportPNG = useCallback(async () => {
+    const success = await exportChartAsPNG('price-chart-container', `${currentSymbol.id}_${selectedPeriod}_chart`);
+    if (success) {
+      toast.success('Chart exported as PNG');
+    } else {
+      toast.error('Failed to export chart');
+    }
+  }, [currentSymbol.id, selectedPeriod]);
 
   const handleExportCSV = useCallback(() => {
-    toast.success('Data exported as CSV');
-  }, []);
+    const success = exportDataAsCSV(chartData, currentSymbol.id, selectedPeriod);
+    if (success) {
+      toast.success('Data exported as CSV');
+    } else {
+      toast.error('Failed to export data');
+    }
+  }, [chartData, currentSymbol.id, selectedPeriod]);
 
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
@@ -191,11 +202,13 @@ const Dashboard = () => {
             />
             
             <div className="flex-1 overflow-auto p-4">
-              <PriceChart
-                data={chartData}
-                chartType={chartType}
-                indicators={indicators}
-              />
+              <div id="price-chart-container">
+                <PriceChart
+                  data={chartData}
+                  chartType={chartType}
+                  indicators={indicators}
+                />
+              </div>
               
               <StatsPanel stats={stats} className="mt-4" />
             </div>

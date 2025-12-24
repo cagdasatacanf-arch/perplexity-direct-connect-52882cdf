@@ -8,6 +8,8 @@ import { StatsPanel } from '@/components/dashboard/StatsPanel';
 import { AIResultsPanel } from '@/components/dashboard/AIResultsPanel';
 import { PriceAlertDialog } from '@/components/dashboard/PriceAlertDialog';
 import { AlertsPanel } from '@/components/dashboard/AlertsPanel';
+import { CommodityCards } from '@/components/dashboard/CommodityCards';
+import { AIMarketAnalysis } from '@/components/dashboard/AIMarketAnalysis';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { perplexityApi, type PerplexityResponse } from '@/lib/api/perplexity';
@@ -71,11 +73,17 @@ const Dashboard = () => {
     [chartData]
   );
 
+  // Separate commodities from stocks
+  const commodities = useMemo(() => 
+    marketSymbols.filter(s => s.category === 'metal'),
+    [marketSymbols]
+  );
+
   // Check for triggered alerts when symbol changes
   useEffect(() => {
     const triggered = checkAlerts(selectedSymbol, currentSymbol.price);
     triggered.forEach((alert) => {
-      triggerAlert(alert.id);
+      triggerAlert(alert.id, currentSymbol.price);
       toast.success(
         `Alert triggered: ${alert.symbolId} is now ${alert.condition === 'above' ? 'above' : 'below'} $${alert.targetPrice.toFixed(2)}`,
         {
@@ -202,6 +210,16 @@ const Dashboard = () => {
             />
             
             <div className="flex-1 overflow-auto p-4">
+              {/* Commodity Cards */}
+              {commodities.length > 0 && (
+                <CommodityCards
+                  commodities={commodities}
+                  selectedSymbol={selectedSymbol}
+                  onSelectSymbol={handleSymbolSelect}
+                  className="mb-4"
+                />
+              )}
+              
               <div id="price-chart-container">
                 <PriceChart
                   data={chartData}
@@ -210,7 +228,15 @@ const Dashboard = () => {
                 />
               </div>
               
-              <StatsPanel stats={stats} className="mt-4" />
+              {/* Stats and AI Analysis side by side */}
+              <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <StatsPanel stats={stats} />
+                <AIMarketAnalysis
+                  symbolId={currentSymbol.id}
+                  symbolName={currentSymbol.name}
+                  currentPrice={currentSymbol.price}
+                />
+              </div>
             </div>
           </main>
 

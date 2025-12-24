@@ -15,6 +15,7 @@ import { CorrelationMatrix } from '@/components/dashboard/CorrelationMatrix';
 import { MarketInsightsPanel } from '@/components/dashboard/MarketInsightsPanel';
 import { HistoricalSidebar } from '@/components/dashboard/HistoricalSidebar';
 import { FullscreenChart } from '@/components/dashboard/FullscreenChart';
+import { DataImportPanel } from '@/components/dashboard/DataImportPanel';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { perplexityApi, type PerplexityResponse } from '@/lib/api/perplexity';
@@ -49,6 +50,7 @@ const Dashboard = () => {
   const [alertsPanelOpen, setAlertsPanelOpen] = useState(false);
   const [portfolioPanelOpen, setPortfolioPanelOpen] = useState(false);
   const [marketInsightsOpen, setMarketInsightsOpen] = useState(false);
+  const [dataImportOpen, setDataImportOpen] = useState(false);
   const {
     alerts,
     triggeredAlerts,
@@ -171,6 +173,7 @@ const Dashboard = () => {
           onMenuClick={() => setSidebarOpen(true)} 
           onPortfolioClick={() => setPortfolioPanelOpen(true)}
           onMarketInsightsClick={() => setMarketInsightsOpen(true)}
+          onDataImportClick={() => setDataImportOpen(true)}
           onRefresh={refreshMarket}
           isRefreshing={marketLoading}
           lastUpdated={lastUpdated}
@@ -299,6 +302,12 @@ const Dashboard = () => {
             onClose={() => setMarketInsightsOpen(false)}
             symbols={marketSymbols}
             onSelectSymbol={handleSymbolSelect}
+          />
+
+          {/* Data Import Panel */}
+          <DataImportPanel
+            isOpen={dataImportOpen}
+            onClose={() => setDataImportOpen(false)}
           />
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { Moon, Sun, Menu, Briefcase, RefreshCw, TrendingUp } from 'lucide-react';
+import { Moon, Sun, Menu, Briefcase, RefreshCw, TrendingUp, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,7 @@ interface DashboardHeaderProps {
   onMenuClick: () => void;
   onPortfolioClick?: () => void;
   onMarketInsightsClick?: () => void;
+  onDataImportClick?: () => void;
   onRefresh?: () => void;
   isRefreshing?: boolean;
   lastUpdated?: Date | null;
@@ -16,6 +17,7 @@ export const DashboardHeader = ({
   onMenuClick, 
   onPortfolioClick,
   onMarketInsightsClick,
+  onDataImportClick,
   onRefresh,
   isRefreshing,
   lastUpdated,
@@ -65,6 +67,17 @@ export const DashboardHeader = ({
             <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
           </Button>
         </div>
+
+        {/* Data Import Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onDataImportClick}
+          className="gap-2"
+        >
+          <Database className="h-4 w-4" />
+          <span className="hidden sm:inline">Import</span>
+        </Button>
 
         {/* Market Insights Button */}
         <Button

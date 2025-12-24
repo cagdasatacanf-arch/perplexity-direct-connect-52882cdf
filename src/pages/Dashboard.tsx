@@ -12,6 +12,7 @@ import { CommodityCards } from '@/components/dashboard/CommodityCards';
 import { AIMarketAnalysis } from '@/components/dashboard/AIMarketAnalysis';
 import { PortfolioPanel } from '@/components/dashboard/PortfolioPanel';
 import { CorrelationMatrix } from '@/components/dashboard/CorrelationMatrix';
+import { EconomicCalendar } from '@/components/dashboard/EconomicCalendar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { perplexityApi, type PerplexityResponse } from '@/lib/api/perplexity';
@@ -247,11 +248,11 @@ const Dashboard = () => {
                 />
               </div>
 
-              {/* Correlation Matrix */}
-              <CorrelationMatrix 
-                symbols={marketSymbols} 
-                className="mt-4"
-              />
+              {/* Correlation Matrix & Economic Calendar */}
+              <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <CorrelationMatrix symbols={marketSymbols} />
+                <EconomicCalendar />
+              </div>
             </div>
           </main>
 

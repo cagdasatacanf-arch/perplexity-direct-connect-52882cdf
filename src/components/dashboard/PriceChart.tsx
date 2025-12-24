@@ -169,6 +169,37 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
     return { macd: macdLine, signal: paddedSignal, histogram };
   }, [data, indicators]);
 
+  // Calculate Bollinger Bands
+  const bollingerData = useMemo(() => {
+    if (!indicators.includes('BB')) return { upper: [], middle: [], lower: [] };
+    
+    const period = 20;
+    const multiplier = 2;
+    const upper: (number | undefined)[] = [];
+    const middle: (number | undefined)[] = [];
+    const lower: (number | undefined)[] = [];
+    
+    for (let i = 0; i < data.length; i++) {
+      if (i < period - 1) {
+        upper.push(undefined);
+        middle.push(undefined);
+        lower.push(undefined);
+      } else {
+        const slice = data.slice(i - period + 1, i + 1);
+        const sma = slice.reduce((sum, p) => sum + p.close, 0) / period;
+        const squaredDiffs = slice.map(p => Math.pow(p.close - sma, 2));
+        const variance = squaredDiffs.reduce((sum, d) => sum + d, 0) / period;
+        const stdDev = Math.sqrt(variance);
+        
+        middle.push(sma);
+        upper.push(sma + multiplier * stdDev);
+        lower.push(sma - multiplier * stdDev);
+      }
+    }
+    
+    return { upper, middle, lower };
+  }, [data, indicators]);
+
   const chartData = useMemo(() => {
     return data.map((d, i) => {
       const ma20 = indicators.includes('MA20') && i >= 19
@@ -195,9 +226,12 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
         macd: isNaN(macdData.macd[i]) ? undefined : macdData.macd[i],
         macdSignal: isNaN(macdData.signal[i]) ? undefined : macdData.signal[i],
         macdHistogram: isNaN(macdData.histogram[i]) ? undefined : macdData.histogram[i],
+        bbUpper: bollingerData.upper[i],
+        bbMiddle: bollingerData.middle[i],
+        bbLower: bollingerData.lower[i],
       };
     });
-  }, [data, indicators, rsiData, macdData]);
+  }, [data, indicators, rsiData, macdData, bollingerData]);
 
   const minPrice = useMemo(() => 
     Math.min(...data.map(d => d.low)) * 0.995, 
@@ -482,6 +516,50 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
               connectNulls
             />
           )}
+
+          {/* Bollinger Bands */}
+          {indicators.includes('BB') && (
+            <>
+              {/* Upper Band */}
+              <Line
+                type="monotone"
+                dataKey="bbUpper"
+                stroke="hsl(var(--chart-bb))"
+                strokeWidth={1}
+                strokeDasharray="4 2"
+                dot={false}
+                connectNulls
+              />
+              {/* Middle Band (SMA) */}
+              <Line
+                type="monotone"
+                dataKey="bbMiddle"
+                stroke="hsl(var(--chart-bb))"
+                strokeWidth={1.5}
+                dot={false}
+                connectNulls
+              />
+              {/* Lower Band */}
+              <Line
+                type="monotone"
+                dataKey="bbLower"
+                stroke="hsl(var(--chart-bb))"
+                strokeWidth={1}
+                strokeDasharray="4 2"
+                dot={false}
+                connectNulls
+              />
+              {/* Fill between bands */}
+              <Area
+                type="monotone"
+                dataKey="bbUpper"
+                stroke="none"
+                fill="hsl(var(--chart-bb))"
+                fillOpacity={0.05}
+                connectNulls
+              />
+            </>
+          )}
         </ComposedChart>
       </ResponsiveContainer>
 
@@ -694,6 +772,12 @@ export const PriceChart = ({ data, chartType, indicators, className }: PriceChar
           <div className="flex items-center gap-1.5">
             <span className="w-4 h-0.5 bg-chart-rsi rounded" />
             <span>RSI</span>
+          </div>
+        )}
+        {indicators.includes('BB') && (
+          <div className="flex items-center gap-1.5">
+            <span className="w-4 h-0.5 bg-chart-bb rounded" />
+            <span>Bollinger</span>
           </div>
         )}
         {indicators.includes('MACD') && (

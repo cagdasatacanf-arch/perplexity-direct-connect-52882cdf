@@ -1,1 +1,4 @@
 project_id = "ktixtwhzsnvazpznltcb"
+
+[functions.perplexity-search]
+verify_jwt = false

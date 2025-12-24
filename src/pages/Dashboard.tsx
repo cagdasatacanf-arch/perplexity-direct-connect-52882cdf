@@ -10,6 +10,7 @@ import { PriceAlertDialog } from '@/components/dashboard/PriceAlertDialog';
 import { AlertsPanel } from '@/components/dashboard/AlertsPanel';
 import { CommodityCards } from '@/components/dashboard/CommodityCards';
 import { AIMarketAnalysis } from '@/components/dashboard/AIMarketAnalysis';
+import { PortfolioPanel } from '@/components/dashboard/PortfolioPanel';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { perplexityApi, type PerplexityResponse } from '@/lib/api/perplexity';
@@ -41,6 +42,7 @@ const Dashboard = () => {
 
   // Alerts
   const [alertsPanelOpen, setAlertsPanelOpen] = useState(false);
+  const [portfolioPanelOpen, setPortfolioPanelOpen] = useState(false);
   const {
     alerts,
     triggeredAlerts,
@@ -159,7 +161,13 @@ const Dashboard = () => {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       <div className="h-screen flex flex-col bg-background">
-        <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
+        <DashboardHeader 
+          onMenuClick={() => setSidebarOpen(true)} 
+          onPortfolioClick={() => setPortfolioPanelOpen(true)}
+          onRefresh={refreshMarket}
+          isRefreshing={marketLoading}
+          lastUpdated={lastUpdated}
+        />
         
         <div className="flex-1 flex overflow-hidden">
           {/* Desktop Sidebar */}
@@ -258,6 +266,13 @@ const Dashboard = () => {
             triggeredAlerts={triggeredAlerts}
             onRemoveAlert={removeAlert}
             onClearTriggered={clearTriggered}
+          />
+
+          {/* Portfolio Panel */}
+          <PortfolioPanel
+            isOpen={portfolioPanelOpen}
+            onClose={() => setPortfolioPanelOpen(false)}
+            symbols={marketSymbols}
           />
         </div>
       </div>

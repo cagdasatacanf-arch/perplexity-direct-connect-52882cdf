@@ -1,13 +1,31 @@
-import { Moon, Sun, Menu } from 'lucide-react';
+import { Moon, Sun, Menu, Briefcase, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 
 interface DashboardHeaderProps {
   onMenuClick: () => void;
+  onPortfolioClick?: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
+  lastUpdated?: Date | null;
 }
 
-export const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
+export const DashboardHeader = ({ 
+  onMenuClick, 
+  onPortfolioClick,
+  onRefresh,
+  isRefreshing,
+  lastUpdated,
+}: DashboardHeaderProps) => {
   const { theme, setTheme } = useTheme();
+
+  const formatLastUpdated = (date: Date) => {
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+    });
+  };
 
   return (
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 lg:px-6">
@@ -25,17 +43,50 @@ export const DashboardHeader = ({ onMenuClick }: DashboardHeaderProps) => {
           Financial Intelligence
         </span>
       </div>
-      
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        className="rounded-full"
-      >
-        <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-        <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-        <span className="sr-only">Toggle theme</span>
-      </Button>
+
+      <div className="flex items-center gap-2">
+        {/* Last Updated & Refresh */}
+        <div className="hidden sm:flex items-center gap-2 mr-2">
+          {lastUpdated && (
+            <span className="text-xs text-muted-foreground">
+              Updated {formatLastUpdated(lastUpdated)}
+            </span>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="h-8 w-8"
+            title="Refresh market data"
+          >
+            <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+          </Button>
+        </div>
+
+        {/* Portfolio Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onPortfolioClick}
+          className="gap-2"
+        >
+          <Briefcase className="h-4 w-4" />
+          <span className="hidden sm:inline">Portfolio</span>
+        </Button>
+        
+        {/* Theme Toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="rounded-full"
+        >
+          <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          <span className="sr-only">Toggle theme</span>
+        </Button>
+      </div>
     </header>
   );
 };

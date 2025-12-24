@@ -14,7 +14,7 @@ import { PortfolioPanel } from '@/components/dashboard/PortfolioPanel';
 import { CorrelationMatrix } from '@/components/dashboard/CorrelationMatrix';
 import { EconomicCalendar } from '@/components/dashboard/EconomicCalendar';
 import { SectorRotation } from '@/components/dashboard/SectorRotation';
-import { HistoricalDataVisualization } from '@/components/dashboard/HistoricalDataVisualization';
+import { HistoricalSidebar } from '@/components/dashboard/HistoricalSidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { perplexityApi, type PerplexityResponse } from '@/lib/api/perplexity';
@@ -33,6 +33,7 @@ const Dashboard = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('3M');
   const [chartType, setChartType] = useState<'candlestick' | 'line' | 'area'>('line');
   const [indicators, setIndicators] = useState<string[]>(['MA20']);
+  const [historicalSidebarOpen, setHistoricalSidebarOpen] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Real-time market data
@@ -250,14 +251,6 @@ const Dashboard = () => {
                 />
               </div>
 
-              {/* Historical Data Visualization */}
-              <HistoricalDataVisualization
-                data={chartData}
-                symbolId={currentSymbol.id}
-                symbolName={currentSymbol.name}
-                className="mt-4"
-              />
-
               {/* Sector Rotation & Economic Calendar */}
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <SectorRotation 
@@ -272,7 +265,14 @@ const Dashboard = () => {
             </div>
           </main>
 
-          {/* AI Results Panel */}
+          {/* Historical Data Sidebar */}
+          <HistoricalSidebar
+            data={chartData}
+            symbolId={currentSymbol.id}
+            symbolName={currentSymbol.name}
+            isOpen={historicalSidebarOpen}
+            onToggle={() => setHistoricalSidebarOpen(!historicalSidebarOpen)}
+          />
           <AIResultsPanel
             isOpen={aiPanelOpen}
             onClose={() => setAIPanelOpen(false)}

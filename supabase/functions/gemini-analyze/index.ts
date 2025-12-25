@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenerativeAI } from "npm:@google/generative-ai"
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -78,7 +78,8 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" }
         })
 
-    } catch (error) {
+    } catch (err) {
+        const error = err as Error
         console.error("Error in gemini-analyze:", error)
         return new Response(JSON.stringify({
             error: error.message,

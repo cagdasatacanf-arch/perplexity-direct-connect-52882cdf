@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, BarChart3 } from 'lucide-react';
 import { PatternAnalysisResponse, directionColors } from '@/lib/patternTypes';
 import { PatternCard } from './PatternCard';
+import { PatternChart } from './PatternChart';
 
 interface PatternResultsProps {
   response: PatternAnalysisResponse | null;
@@ -95,6 +96,9 @@ export const PatternResults = ({ response, isLoading }: PatternResultsProps) => 
           </div>
         </CardContent>
       </Card>
+
+      {/* Price Chart with Pattern Overlays */}
+      <PatternChart symbol={data.symbol} patterns={data.patterns} />
 
       {/* Pattern Cards */}
       {data.patterns.length > 0 ? (

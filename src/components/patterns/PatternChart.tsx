@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ComposedChart,
@@ -9,13 +9,15 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
   ReferenceArea,
   ReferenceDot,
+  Cell,
 } from 'recharts';
 import { PatternMatch, patternDisplayNames } from '@/lib/patternTypes';
-import { generateMockPriceData, mockPatternOverlays, PricePoint, PatternOverlay } from '@/lib/mockPriceData';
-import { LineChart } from 'lucide-react';
+import { generateMockPriceData, mockPatternOverlays } from '@/lib/mockPriceData';
+import { LineChart, CandlestickChart } from 'lucide-react';
+import { Toggle } from '@/components/ui/toggle';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 interface PatternChartProps {
   symbol: string;
@@ -40,7 +42,58 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+// Custom Candlestick shape component
+const CandlestickShape = (props: any) => {
+  const { x, y, width, height, payload } = props;
+  if (!payload) return null;
+  
+  const { open, close, high, low } = payload;
+  const isUp = close >= open;
+  const color = isUp ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))';
+  
+  const candleTop = Math.max(open, close);
+  const candleBottom = Math.min(open, close);
+  const candleHeight = Math.abs(close - open);
+  
+  // Scale calculations - we need to work with the actual y position
+  const yScale = height / (high - low);
+  const wickX = x + width / 2;
+  
+  return (
+    <g>
+      {/* Upper wick */}
+      <line
+        x1={wickX}
+        y1={y}
+        x2={wickX}
+        y2={y + (high - candleTop) * yScale}
+        stroke={color}
+        strokeWidth={1}
+      />
+      {/* Candle body */}
+      <rect
+        x={x + width * 0.1}
+        y={y + (high - candleTop) * yScale}
+        width={width * 0.8}
+        height={Math.max(candleHeight * yScale, 1)}
+        fill={color}
+        stroke={color}
+      />
+      {/* Lower wick */}
+      <line
+        x1={wickX}
+        y1={y + (high - candleBottom) * yScale}
+        x2={wickX}
+        y2={y + height}
+        stroke={color}
+        strokeWidth={1}
+      />
+    </g>
+  );
+};
+
 export const PatternChart = ({ symbol, patterns }: PatternChartProps) => {
+  const [chartType, setChartType] = useState<'line' | 'candlestick'>('line');
   const priceData = useMemo(() => generateMockPriceData(symbol, 30), [symbol]);
   const overlays = mockPatternOverlays[symbol] || [];
 
@@ -58,23 +111,36 @@ export const PatternChart = ({ symbol, patterns }: PatternChartProps) => {
     }
   };
 
-  // Transform data for candlestick-like visualization
+  // Transform data for chart
   const chartData = priceData.map((point, index) => ({
     ...point,
     index,
-    // For the area between high and low
-    range: [point.low, point.high],
-    // Color based on close vs open
+    // For candlestick height calculation
+    range: point.high - point.low,
     fill: point.close >= point.open ? 'hsl(var(--chart-2))' : 'hsl(var(--destructive))',
   }));
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <LineChart className="h-4 w-4" />
-          Price Chart with Pattern Overlays
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            {chartType === 'line' ? (
+              <LineChart className="h-4 w-4" />
+            ) : (
+              <CandlestickChart className="h-4 w-4" />
+            )}
+            Price Chart with Pattern Overlays
+          </CardTitle>
+          <ToggleGroup type="single" value={chartType} onValueChange={(v) => v && setChartType(v as 'line' | 'candlestick')}>
+            <ToggleGroupItem value="line" aria-label="Line chart" size="sm">
+              <LineChart className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="candlestick" aria-label="Candlestick chart" size="sm">
+              <CandlestickChart className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="h-[350px] w-full">
@@ -120,23 +186,65 @@ export const PatternChart = ({ symbol, patterns }: PatternChartProps) => {
                 );
               })}
 
-              {/* High-Low range as thin bars */}
-              <Bar 
-                dataKey="high" 
-                fill="transparent"
-                stroke="hsl(var(--muted-foreground))"
-                barSize={1}
-              />
-
-              {/* Close price line */}
-              <Line
-                type="monotone"
-                dataKey="close"
-                stroke="hsl(var(--primary))"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, fill: 'hsl(var(--primary))' }}
-              />
+              {/* Candlestick or Line view */}
+              {chartType === 'candlestick' ? (
+                <>
+                  {/* Wicks */}
+                  {chartData.map((point, idx) => {
+                    const isUp = point.close >= point.open;
+                    const color = isUp ? 'hsl(142, 76%, 36%)' : 'hsl(0, 84%, 60%)';
+                    return (
+                      <ReferenceDot
+                        key={`wick-${idx}`}
+                        x={point.date}
+                        y={(point.high + point.low) / 2}
+                        r={0}
+                        ifOverflow="visible"
+                      >
+                        <line
+                          x1={0}
+                          y1={-((point.high - point.low) / (maxPrice - minPrice)) * 175}
+                          x2={0}
+                          y2={((point.high - point.low) / (maxPrice - minPrice)) * 175}
+                          stroke={color}
+                          strokeWidth={1}
+                        />
+                      </ReferenceDot>
+                    );
+                  })}
+                  {/* Candle bodies */}
+                  <Bar
+                    dataKey={(d: any) => Math.abs(d.close - d.open) || 0.5}
+                    barSize={8}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={entry.close >= entry.open ? 'hsl(142, 76%, 36%)' : 'hsl(0, 84%, 60%)'}
+                      />
+                    ))}
+                  </Bar>
+                </>
+              ) : (
+                <>
+                  {/* High-Low range as thin bars */}
+                  <Bar 
+                    dataKey="high" 
+                    fill="transparent"
+                    stroke="hsl(var(--muted-foreground))"
+                    barSize={1}
+                  />
+                  {/* Close price line */}
+                  <Line
+                    type="monotone"
+                    dataKey="close"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, fill: 'hsl(var(--primary))' }}
+                  />
+                </>
+              )}
 
               {/* Pattern key points */}
               {overlays.flatMap((overlay, overlayIdx) =>

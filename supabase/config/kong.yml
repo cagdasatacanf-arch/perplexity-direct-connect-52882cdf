@@ -1,0 +1,71 @@
+_format_version: "1.1"
+services:
+  - name: "rest-v1"
+    url: "http://rest:3000"
+    routes:
+      - name: "rest-v1-route"
+        paths:
+          - "/rest/v1"
+          - "/"
+        strip_path: true
+  
+  - name: "auth-v1"
+    url: "http://auth:9999"
+    routes:
+      - name: "auth-v1-route"
+        paths:
+          - "/auth/v1"
+        strip_path: true
+
+  - name: "realtime-v1"
+    url: "http://realtime:4000"
+    routes:
+      - name: "realtime-v1-route"
+        paths:
+          - "/realtime/v1"
+        strip_path: true
+
+  - name: "storage-v1"
+    url: "http://storage:5000"
+    routes:
+      - name: "storage-v1-route"
+        paths:
+          - "/storage/v1"
+        strip_path: true
+
+  - name: "functions-v1"
+    url: "http://functions:9000"
+    routes:
+      - name: "functions-v1-route"
+        paths:
+          - "/functions/v1"
+        strip_path: true
+
+plugins:
+  - name: cors
+    config:
+      origins:
+        - "*"
+      methods:
+        - "GET"
+        - "POST"
+        - "PUT"
+        - "PATCH"
+        - "DELETE"
+        - "OPTIONS"
+      headers:
+        - "accept"
+        - "accept-encoding"
+        - "authorization"
+        - "content-type"
+        - "dnt"
+        - "origin"
+        - "user-agent"
+        - "x-csrftoken"
+        - "x-requested-with"
+        - "apikey"
+      exposed_headers:
+        - "content-range"
+        - "content-length"
+      credentials: true
+      max_age: 3600

@@ -1,0 +1,143 @@
+version: "3.8"
+
+services:
+  # --------------------------------------------------------------------------------
+  # Postgres Database (Supabase specific configuration)
+  # --------------------------------------------------------------------------------
+  db:
+    container_name: supabase-db
+    image: supabase/postgres:15.1.0.147
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    restart: unless-stopped
+    ports:
+      - "54322:5432" # Mapped to 54322 to avoid conflict with local postgres
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - ./supabase/volumes/db/data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d/migrations:ro
+
+  # --------------------------------------------------------------------------------
+  # Studio (Dashboard UI)
+  # --------------------------------------------------------------------------------
+  studio:
+    container_name: supabase-studio
+    image: supabase/studio:20240101-8e7b3ee
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DEFAULT_ORGANIZATION_NAME: "Depo Data"
+      DEFAULT_PROJECT_NAME: "Depo Local"
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: http://localhost:8000
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-your-anon-key-here}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-your-service-key-here}
+    depends_on:
+      - meta
+
+  # --------------------------------------------------------------------------------
+  # Kong (API Gateway)
+  # --------------------------------------------------------------------------------
+  kong:
+    container_name: supabase-kong
+    image: kong:2.8.1
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+    volumes:
+      - ./supabase/config/kong.yml:/var/lib/kong/kong.yml:ro
+    depends_on:
+      - rest
+
+  # --------------------------------------------------------------------------------
+  # PostgREST (REST API)
+  # --------------------------------------------------------------------------------
+  rest:
+    container_name: supabase-rest
+    image: postgrest/postgrest:v12.0.1
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+    depends_on:
+      - db
+
+  # --------------------------------------------------------------------------------
+  # Realtime
+  # --------------------------------------------------------------------------------
+  realtime:
+    container_name: supabase-realtime
+    image: supabase/realtime:v2.25.22
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DB_NAME: ${POSTGRES_DB:-postgres}
+      PORT: 4000
+      JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      REPLICATION_MODE: RLS
+    depends_on:
+      - db
+
+  # --------------------------------------------------------------------------------
+  # Edge Functions (Deno)
+  # --------------------------------------------------------------------------------
+  functions:
+    container_name: supabase-edge-functions
+    image: supabase/edge-runtime:v1.29.0
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-super-secret-jwt-token-with-at-least-32-characters-long}
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-your-anon-key-here}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_KEY:-your-service-key-here}
+      POSTGRES_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+    volumes:
+      - ./supabase/functions:/home/deno/functions
+    command: start --main-service /home/deno/functions/main.ts
+
+  # --------------------------------------------------------------------------------
+  # Postgres Meta (Schema Management)
+  # --------------------------------------------------------------------------------
+  meta:
+    container_name: supabase-meta
+    image: supabase/postgres-meta:v0.80.0
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: ${POSTGRES_DB:-postgres}
+      PG_META_DB_USER: postgres
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    depends_on:
+      - db
+
+# --------------------------------------------------------------------------------
+# Volumes
+# --------------------------------------------------------------------------------
+volumes:
+  db_data:
